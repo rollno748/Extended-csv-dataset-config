@@ -23,7 +23,7 @@ This will enable LoadRunner users to have the same parameter advantage in Apache
 * Copy the Jar to \<Jmeter Installed Directory\>/lib/ext/
 
 
-## Options
+## Options
 
 This allows reading of CSV data as follows
 
@@ -32,7 +32,7 @@ This allows reading of CSV data as follows
 * When Out of Values (Continue Cyclic | Continue with last Value | Abort)
 
 
-## References
+## References
 
  * CSV data set config
 
