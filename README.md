@@ -2,13 +2,14 @@
 
 ## Introduction
 
-This plugins provide additional features over the CSV data set config element for Jmeter. This also provides additional parameterisation feature.
+This plugins provide additional features over the CSV data set config element for Jmeter. This also provides additional parameterization feature.
 
-This will enable LoadRunner users to have the same parameter advantage in Apache Jmeter
+This will enable **LoadRunner** users, the privilege of having similar parameter advantage in **Apache JMeter**
 
 ## Required Components
 
-1. Apache Jmeter
+1. Apache JMeter components
+2. Apache JMeter core
 
 ## Jmeter Target
 
@@ -19,7 +20,7 @@ This will enable LoadRunner users to have the same parameter advantage in Apache
 
 * Download the source code from the Github.
 * Just do a mvn clean install (M2 is required)
-* Jar will be generated under the target directory (di-kafkameter-1.0.jar).
+* Jar will be generated under the target directory (di-extended-csv-1.0.jar).
 * Copy the Jar to \<Jmeter Installed Directory\>/lib/ext/
 
 
@@ -28,9 +29,21 @@ This will enable LoadRunner users to have the same parameter advantage in Apache
 This allows reading of CSV data as follows
 
 * Select Row (Sequential | Random | Unique)
-* Update Value (Each Iteration | Each occurence | Once)
-* When Out of Values (Continue Cyclic | Continue with last Value | Abort)
+* Update Value (Each Iteration | Once)
+* When Out of Values (Continue Cyclic | Continue with last Value | Abort Thread)
 
+The below table is the combinations allowed while using this plugin 
+
+|Select Row|Update value| Out of Values |Allocate Block Size|
+| ------ | ------ |------| ------ |
+|Sequential|Each Iteration| Yes|NA|
+|Sequential|Once| NA   |NA|
+|Random|Each Iteration| NA   |NA|
+|Random|Once| NA   |NA|
+|Unique|Each Iteration| Continue with Last Value |Enabled|
+|Unique|Each Iteration| Continue Cyclic |Enabled|
+|Unique|Each Iteration| Abort Thread |Enabled|
+|Unique|Once| NA   |NA|
 
 ## References
 
@@ -38,9 +51,9 @@ This allows reading of CSV data as follows
 
 
 ## 💲 Donate
-<a href="https://www.buymeacoffee.com/rollno748" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-green.png" alt="Buy Me A Coffee" style="max-width:20%;" ></a> 
+<a href="https://www.buymeacoffee.com/rollno748" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-green.png" alt="Buy Me A Coffee" style="max-width:15%;" ></a> 
 
-Please rate a :star2: if you like it.
+Please rate a star(:star2:) - If you like it.
 
-Please open up a :beetle: - If you experienced something.
+Please open up a bug(:beetle:) - If you experience abnormalities.
  

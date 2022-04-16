@@ -1,16 +1,18 @@
 package com.di.jmeter.config;
 
-import java.beans.PropertyDescriptor;
-
 import org.apache.jmeter.testbeans.BeanInfoSupport;
 import org.apache.jmeter.testbeans.gui.FileEditor;
 import org.apache.jmeter.testbeans.gui.TypeEditor;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.util.JOrphanUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.beans.PropertyDescriptor;
 
 public class ExtendedCsvDataSetBeanInfo extends BeanInfoSupport {
 
-	//private static Logger LOGGER = LoggerFactory.getLogger(ExtendedCsvDataSetBeanInfo.class);
+	private static Logger LOGGER = LoggerFactory.getLogger(ExtendedCsvDataSetBeanInfo.class);
 
 	private static final String FILENAME = "filename";
 	private static final String FILE_ENCODING = "fileEncoding";
@@ -20,15 +22,15 @@ public class ExtendedCsvDataSetBeanInfo extends BeanInfoSupport {
 	private static final String QUOTED_DATA = "quotedData";
 	private static final String SELECT_ROW = "selectRow"; // Sequential | random | unique
 	private static final String UPDATE_VALUE = "updateValue"; // Each iteration | Each occurrence | Once
-	private static final String RECYCLE = "recycle"; // abort Vuser | Continue cyclic manner | continue with lastvalue
-	private static final String SHAREMODE = "shareMode";
+	private static final String OOVALUE = "ooValue"; // abort Vuser | Continue cyclic manner | continue with lastvalue
+	private static final String SHARE_MODE = "shareMode";
+	private static final String ENABLE_BLOCK_SIZE = "enableBlockSize";
 	private static final String AUTO_ALLOCATE = "autoAllocate";
-	private static final String ALLOCATE_SIZE = "allocateSize";
+	private static final String BLOCK_SIZE = "blockSize";
 	
 	// Allocate Vusers values in controller - automatically allocate vusers
 	// blocksize - allocate [] values for for each user
 
-	// Access needed from CSVDataSet
 	private static final String[] SHARE_TAGS = new String[3];
 	static final int SHARE_ALL = 0;
 	static final int SHARE_GROUP = 1;
@@ -36,13 +38,14 @@ public class ExtendedCsvDataSetBeanInfo extends BeanInfoSupport {
 
 	private static final String[] SELECTROW_TAGS = new String[3];
 	static final int SEQUENTIAL = 0;
-	static final int RANDOM = 1;
-	static final int UNIQUE = 2;
+	static final int UNIQUE = 1;
+	static final int RANDOM = 2;
 
-	private static final String[] UPDATEVALUE_TAGS = new String[3];
+
+	private static final String[] UPDATEVALUE_TAGS = new String[2];
 	static final int EACH_ITERATION = 0;
-	static final int EACH_OCCURRENCE = 1;
-	static final int ONCE = 2;
+	//static final int EACH_OCCURRENCE = 1;
+	static final int ONCE = 1;//2
 
 	private static final String[] RECYCLE_TAGS = new String[3];
 	static final int CONTINUE_CYCLIC = 0;
@@ -52,10 +55,10 @@ public class ExtendedCsvDataSetBeanInfo extends BeanInfoSupport {
 	// Store the resource keys
 	static {
 		SELECTROW_TAGS[SEQUENTIAL] = "selectRow.sequential";
-		SELECTROW_TAGS[RANDOM] = "selectRow.random";
 		SELECTROW_TAGS[UNIQUE] = "selectRow.unique";
+		SELECTROW_TAGS[RANDOM] = "selectRow.random";
 		UPDATEVALUE_TAGS[EACH_ITERATION] = "updateValue.eachIteration";
-		UPDATEVALUE_TAGS[EACH_OCCURRENCE] = "updateValue.eachOccurrence";
+		//UPDATEVALUE_TAGS[EACH_OCCURRENCE] = "updateValue.eachOccurrence";
 		UPDATEVALUE_TAGS[ONCE] = "updateValue.once";
 		RECYCLE_TAGS[CONTINUE_CYCLIC] = "recycle.countinueCyclic";
 		RECYCLE_TAGS[ABORT_THREAD] = "recycle.abortThread";
@@ -71,9 +74,9 @@ public class ExtendedCsvDataSetBeanInfo extends BeanInfoSupport {
 		super(ExtendedCsvDataSet.class);
 
 		createPropertyGroup("csv_data", new String[] { FILENAME, FILE_ENCODING, VARIABLE_NAMES, IGNORE_FIRST_LINE,
-				DELIMITER, QUOTED_DATA, SELECT_ROW, UPDATE_VALUE, RECYCLE, SHAREMODE });
+				DELIMITER, QUOTED_DATA, SELECT_ROW, UPDATE_VALUE, OOVALUE, SHARE_MODE });
 		
-		createPropertyGroup("block_size", new String[]  { AUTO_ALLOCATE, ALLOCATE_SIZE });
+		createPropertyGroup("block_size", new String[]  { ENABLE_BLOCK_SIZE, AUTO_ALLOCATE, BLOCK_SIZE });
 
 		PropertyDescriptor p = property(FILENAME);
 		p.setValue(NOT_UNDEFINED, Boolean.TRUE);
@@ -137,7 +140,7 @@ public class ExtendedCsvDataSetBeanInfo extends BeanInfoSupport {
 		p.setDisplayName("Update Value");
 		p.setShortDescription("How you want to update the value");
 
-		p = property(RECYCLE, TypeEditor.ComboStringEditor);
+		p = property(OOVALUE, TypeEditor.ComboStringEditor);
 		p.setValue(RESOURCE_BUNDLE, getBeanDescriptor().getValue(RESOURCE_BUNDLE));
 		p.setValue(NOT_UNDEFINED, Boolean.TRUE);
 		p.setValue(DEFAULT, RECYCLE_TAGS[CONTINUE_CYCLIC]);
@@ -147,7 +150,7 @@ public class ExtendedCsvDataSetBeanInfo extends BeanInfoSupport {
 		p.setDisplayName("When out of values");
 		p.setShortDescription("Recycle option when hitting EOF");
 
-		p = property(SHAREMODE, TypeEditor.ComboStringEditor);
+		p = property(SHARE_MODE, TypeEditor.ComboStringEditor);
 		p.setValue(RESOURCE_BUNDLE, getBeanDescriptor().getValue(RESOURCE_BUNDLE));
 		p.setValue(NOT_UNDEFINED, Boolean.TRUE);
 		p.setValue(DEFAULT, SHARE_TAGS[SHARE_ALL]);
@@ -155,20 +158,24 @@ public class ExtendedCsvDataSetBeanInfo extends BeanInfoSupport {
 		p.setValue(NOT_EXPRESSION, Boolean.FALSE);
 		p.setValue(TAGS, SHARE_TAGS);
 		
-		PropertyDescriptor allocateProp = property(AUTO_ALLOCATE);
+		PropertyDescriptor allocateProp = property(ENABLE_BLOCK_SIZE);
+		allocateProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
+		allocateProp.setValue(DEFAULT, Boolean.FALSE);
+		allocateProp.setDisplayName("Enable block size");
+		allocateProp.setShortDescription("Enable block size per thread ");
+
+		allocateProp = property(AUTO_ALLOCATE);
 		allocateProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
 		allocateProp.setValue(DEFAULT, Boolean.FALSE);
 		allocateProp.setDisplayName("Auto allocate");
 		allocateProp.setShortDescription("Auto allocate block size for each thread ");
-		
-		allocateProp = property(ALLOCATE_SIZE);
+
+		allocateProp = property(BLOCK_SIZE);
 		allocateProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
-		allocateProp.setValue(DEFAULT, "");
+		allocateProp.setValue(DEFAULT, "1");
 		allocateProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
 		allocateProp.setDisplayName("Block size");
 		allocateProp.setShortDescription("Allocate block size for each thread ");
-		
-		
 
 	}
 
@@ -244,7 +251,6 @@ public class ExtendedCsvDataSetBeanInfo extends BeanInfoSupport {
 		return copy;
 	}
 
-	
 	 /**
      * Get the mains file encoding
      * list from https://docs.oracle.com/javase/8/docs/technotes/guides/intl/encoding.doc.html
