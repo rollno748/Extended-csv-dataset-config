@@ -36,7 +36,9 @@ The below table is the combinations allowed while using this plugin
 
 |Select Row|Update value| Out of Values |Allocate Block Size|
 | ------ | ------ |------| ------ |
-|Sequential|Each Iteration| Yes|NA|
+|Sequential|Each Iteration| Continue Cyclic|NA|
+|Sequential|Each Iteration| Abort Thread|NA|
+|Sequential|Each Iteration| Continue with Last value|NA|
 |Sequential|Once| NA   |NA|
 |Random|Each Iteration| NA   |NA|
 |Random|Once| NA   |NA|
