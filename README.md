@@ -6,6 +6,9 @@ This plugins provide additional features over the CSV data set config element fo
 
 This will enable **LoadRunner** users, the privilege of having similar parameter advantage in **Apache JMeter**
 
+## Preview
+![Extended CSV Dataset Config](/images/ExtendedCSV.png)
+
 ## Required Components
 
 1. Apache JMeter components
