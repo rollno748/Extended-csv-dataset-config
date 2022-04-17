@@ -1,3 +1,21 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.di.jmeter.config;
 
 import com.di.jmeter.utils.ExtFileServer;
@@ -21,7 +39,7 @@ import java.io.IOException;
 public class ExtendedCsvDataSet extends ConfigTestElement implements TestBean, LoopIterationListener, NoConfigMerge {
 
 	private static final long serialVersionUID = 767792680142202807L;
-	private static Logger LOGGER = LoggerFactory.getLogger(ExtendedCsvDataSet.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(ExtendedCsvDataSet.class);
 
 	private transient String filename;
 	private transient String fileEncoding;
@@ -31,7 +49,7 @@ public class ExtendedCsvDataSet extends ConfigTestElement implements TestBean, L
 	private transient boolean quotedData;
 	private transient String selectRow; // Sequential | random | unique
 	private transient String updateValue; // Each iteration | Once
-	private transient String ooValue; // Abort Vuser | Continue cyclic manner | Continue with lastvalue
+	private transient String ooValue; // Abort Thread | Continue cyclic manner | Continue with lastValue
 	private transient String shareMode;
 	private transient boolean autoAllocate;
 	private transient String blockSize;
@@ -40,16 +58,10 @@ public class ExtendedCsvDataSet extends ConfigTestElement implements TestBean, L
 	private transient String[] variables;
 	private transient String alias;
 	private boolean firstLineIsNames = false;
-	private boolean ooFlag = true;
 	private boolean updateOnceFlag = true;
 
 	@Override
 	public void iterationStart(LoopIterationEvent iterEvent) {
-
-//		final int selectRowInt = ExtendedCsvDataSetBeanInfo.getSelectRowAsInt(getSelectRow());
-//		final int updateValInt = ExtendedCsvDataSetBeanInfo.getUpdateValueAsInt(getUpdateValue());
-//		final int ooValuesInt = ExtendedCsvDataSetBeanInfo.getRecycleAsInt(getOoValue());
-//		final int shareModeInt = ExtendedCsvDataSetBeanInfo.getShareModeAsInt(getShareMode());
 
 		ExtFileServer fServer = ExtFileServer.getFileServer();
 		final JMeterContext context = getThreadContext();
@@ -69,29 +81,27 @@ public class ExtendedCsvDataSet extends ConfigTestElement implements TestBean, L
 					if(isQuotedData()){
 						lineValues = fServer.getParsedLine(alias, recycle, firstLineIsNames || ignoreFirstLine, delimiter.charAt(0));
 					}else {
-						String line = fServer.readLine(alias, recycle, firstLineIsNames || ignoreFirstLine);
+						String line = fServer.readSequential(alias, firstLineIsNames || ignoreFirstLine, getUpdateValue(), getOoValue());
 						lineValues = JOrphanUtils.split(line, delimiter, false);
 					}
 				}catch (IOException e){
 					LOGGER.error(e.toString());
 				}
-				LOGGER.info("Sequential");
+				LOGGER.debug("Sequential");
 				break;
-
 			case ExtendedCsvDataSetBeanInfo.UNIQUE:
 				try{
 					if(isQuotedData()){
 						lineValues = fServer.getParsedLine(alias, recycle, firstLineIsNames || ignoreFirstLine, delimiter.charAt(0));
 					}else{
-						String line = fServer.getUniqueLine(alias, firstLineIsNames || ignoreFirstLine, ExtFileServer.getReadPos(), ExtFileServer.getStartPos(), ExtFileServer.getEndPos());
+						String line = fServer.getUniqueLine(alias, firstLineIsNames || ignoreFirstLine, getOoValue(), ExtFileServer.getReadPos(), ExtFileServer.getStartPos(), ExtFileServer.getEndPos());
 						lineValues = JOrphanUtils.split(line, delimiter, false);
 					}
 				}catch (IOException e){
 					LOGGER.error(e.toString());
 				}
-				LOGGER.info("Unique");
+				LOGGER.debug("Unique");
 				break;
-
 			case ExtendedCsvDataSetBeanInfo.RANDOM:
 				try{
 					if(isQuotedData()){
@@ -103,7 +113,7 @@ public class ExtendedCsvDataSet extends ConfigTestElement implements TestBean, L
 				}catch(IOException e){
 					LOGGER.error(e.toString());
 				}
-				LOGGER.info("Random");
+				LOGGER.info("debug");
 				break;
 			default:
 				LOGGER.info("Default");
@@ -114,15 +124,15 @@ public class ExtendedCsvDataSet extends ConfigTestElement implements TestBean, L
 		// Update Value --> Each Iteration, Once
 		switch (ExtendedCsvDataSetBeanInfo.getUpdateValueAsInt(getUpdateValue())) {
 			case ExtendedCsvDataSetBeanInfo.EACH_ITERATION:
-				LOGGER.info("Each Iteration");
-				if(ooFlag){
+				LOGGER.debug("Each Iteration");
+				if(lineValues.length > 0){
 					for (int a = 0; a < variables.length && a < lineValues.length; a++) {
 						jMeterVariables.put(variables[a], lineValues[a]);
 					}
 				}
 				break;
 			case ExtendedCsvDataSetBeanInfo.ONCE:
-				LOGGER.info("Once");
+				LOGGER.debug("Once");
 				if(updateOnceFlag){
 					for (int a = 0; a < variables.length && a < lineValues.length; a++) {
 						jMeterVariables.put(variables[a], lineValues[a]);
@@ -135,48 +145,6 @@ public class ExtendedCsvDataSet extends ConfigTestElement implements TestBean, L
 				throw new JMeterStopThreadException("Invalid selection :" + getFilename() + " detected for Extended CSV DataSet:"
 						+ getName() + " configured to Select Row Parameter :" + getUpdateValue());
 		}
-
-		// When Out of Values --> Continue Cyclic, Abort Thread, Continue with the last value
-		switch (ExtendedCsvDataSetBeanInfo.getRecycleAsInt(getOoValue())){
-			case ExtendedCsvDataSetBeanInfo.CONTINUE_CYCLIC://0
-				if(getSelectRow().equalsIgnoreCase("selectRow.unique")){
-					if((ExtFileServer.getReadPos() >= ExtFileServer.getEndPos())){
-						ExtFileServer.setReadPos(ExtFileServer.getStartPos());
-					}else {
-						ExtFileServer.setReadPos(ExtFileServer.getReadPos() + 1);
-					}
-				}
-				break;
-			case ExtendedCsvDataSetBeanInfo.ABORT_THREAD://1
-				if (lineValues.length == 0 || (ExtFileServer.getReadPos() > ExtFileServer.getEndPos())){
-					throw new JMeterStopThreadException("End of file :" + getFilename() + " detected for Extended CSV DataSet:"
-							+ getName() + " configured with stopThread: " + getOoValue());
-				}else if(getSelectRow().equalsIgnoreCase("selectRow.unique")){
-						ExtFileServer.setReadPos(ExtFileServer.getReadPos() + 1);
-				}
-				break;
-			case ExtendedCsvDataSetBeanInfo.CONTINUE_WITH_LAST_VALUE://2
-				if (!jMeterVariables.get(variables[0]).isEmpty()){
-					this.ooFlag = false;
-				}else{
-					this.ooFlag = true;
-				}
-				if(getSelectRow().equalsIgnoreCase("selectRow.unique")){
-					if((ExtFileServer.getReadPos() >= ExtFileServer.getEndPos())){
-						ExtFileServer.setReadPos(ExtFileServer.getReadPos());
-					}else {
-						ExtFileServer.setReadPos(ExtFileServer.getReadPos() + 1);
-						this.ooFlag = true;
-					}
-				}
-				break;
-			default:
-				LOGGER.info("Default");
-				throw new JMeterStopThreadException("Invalid selection :" + getFilename() + " detected for Extended CSV DataSet:"
-						+ getName() + " Configured to When out of values parameter :" + getOoValue());
-		}
-
-
 	}
 
 	private void initBlockFeatures(String filename, JMeterContext context, ExtFileServer fServer, boolean autoAllocate, String blockSize) throws IOException{
@@ -187,7 +155,7 @@ public class ExtendedCsvDataSet extends ConfigTestElement implements TestBean, L
 			fServer.reserveFile(filename, getFileEncoding(), alias, ignoreFirstLine);
 			fServer.loadCsv(filename, isIgnoreFirstLine());
 		}
-		if(isAutoAllocate()){
+		if(autoAllocate){
 			blockSizeInt = ExtFileServer.getListSize() / context.getThreadGroup().getNumberOfThreads();
 		}else{
 			blockSizeInt = Integer.parseInt(blockSize);
@@ -214,7 +182,6 @@ public class ExtendedCsvDataSet extends ConfigTestElement implements TestBean, L
 		if(ExtendedCsvDataSetBeanInfo.getRecycleAsInt(getOoValue()) == 0){
 			this.recycle = true;
 		}
-
 		if (StringUtils.isEmpty(names)) {
 			String header = server.reserveFile(fileName, getFileEncoding(), alias, true);
 			try {
@@ -228,7 +195,6 @@ public class ExtendedCsvDataSet extends ConfigTestElement implements TestBean, L
 			variables = JOrphanUtils.split(names, ",");
 		}
 		trimVarNames(variables);
-
 		if(getSelectRow().equalsIgnoreCase("selectRow.unique")){
 			try {
 				initBlockFeatures(alias, context, server, isAutoAllocate(), getBlockSize());

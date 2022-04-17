@@ -1,3 +1,21 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
 package com.di.jmeter.config;
 
 import org.apache.jmeter.testbeans.BeanInfoSupport;
@@ -26,9 +44,6 @@ public class ExtendedCsvDataSetBeanInfo extends BeanInfoSupport {
 	private static final String SHARE_MODE = "shareMode";
 	private static final String AUTO_ALLOCATE = "autoAllocate";
 	private static final String BLOCK_SIZE = "blockSize";
-	
-	// Allocate Vusers values in controller - automatically allocate vusers
-	// blocksize - allocate [] values for for each user
 
 	private static final String[] SHARE_TAGS = new String[3];
 	static final int SHARE_ALL = 0;
@@ -39,7 +54,6 @@ public class ExtendedCsvDataSetBeanInfo extends BeanInfoSupport {
 	static final int SEQUENTIAL = 0;
 	static final int UNIQUE = 1;
 	static final int RANDOM = 2;
-
 
 	private static final String[] UPDATEVALUE_TAGS = new String[2];
 	static final int EACH_ITERATION = 0;
@@ -59,14 +73,13 @@ public class ExtendedCsvDataSetBeanInfo extends BeanInfoSupport {
 		UPDATEVALUE_TAGS[EACH_ITERATION] = "updateValue.eachIteration";
 		//UPDATEVALUE_TAGS[EACH_OCCURRENCE] = "updateValue.eachOccurrence";
 		UPDATEVALUE_TAGS[ONCE] = "updateValue.once";
-		RECYCLE_TAGS[CONTINUE_CYCLIC] = "recycle.countinueCyclic";
+		RECYCLE_TAGS[CONTINUE_CYCLIC] = "recycle.continueCyclic";
 		RECYCLE_TAGS[ABORT_THREAD] = "recycle.abortThread";
 		RECYCLE_TAGS[CONTINUE_WITH_LAST_VALUE] = "recycle.continueLastValue";
 		SHARE_TAGS[SHARE_ALL] = "shareMode.all";
 		SHARE_TAGS[SHARE_GROUP] = "shareMode.group";
 		SHARE_TAGS[SHARE_THREAD] = "shareMode.thread";
 	}
-	
 
 	public ExtendedCsvDataSetBeanInfo() {
 
@@ -74,7 +87,6 @@ public class ExtendedCsvDataSetBeanInfo extends BeanInfoSupport {
 
 		createPropertyGroup("csv_data", new String[] { FILENAME, FILE_ENCODING, VARIABLE_NAMES, IGNORE_FIRST_LINE,
 				DELIMITER, QUOTED_DATA, SELECT_ROW, UPDATE_VALUE, OOVALUE, SHARE_MODE });
-		
 		createPropertyGroup("block_size", new String[]  { AUTO_ALLOCATE, BLOCK_SIZE });
 
 		PropertyDescriptor p = property(FILENAME);
@@ -84,7 +96,6 @@ public class ExtendedCsvDataSetBeanInfo extends BeanInfoSupport {
 		p.setPropertyEditorClass(FileEditor.class);
 		p.setDisplayName("FileName");
 		p.setShortDescription("Name of the file that holds the CSV data (relative or absolute filename)");
-		
 
 		p = property(FILE_ENCODING, TypeEditor.ComboStringEditor);
 		p.setValue(NOT_UNDEFINED, Boolean.TRUE);
@@ -156,12 +167,6 @@ public class ExtendedCsvDataSetBeanInfo extends BeanInfoSupport {
 		p.setValue(NOT_OTHER, Boolean.FALSE);
 		p.setValue(NOT_EXPRESSION, Boolean.FALSE);
 		p.setValue(TAGS, SHARE_TAGS);
-		
-//		PropertyDescriptor allocateProp = property(ENABLE_BLOCK_SIZE);
-//		allocateProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
-//		allocateProp.setValue(DEFAULT, Boolean.FALSE);
-//		allocateProp.setDisplayName("Enable block size");
-//		allocateProp.setShortDescription("Enable block size per thread ");
 
 		PropertyDescriptor allocateProp = property(AUTO_ALLOCATE);
 		allocateProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
@@ -255,7 +260,6 @@ public class ExtendedCsvDataSetBeanInfo extends BeanInfoSupport {
      * list from https://docs.oracle.com/javase/8/docs/technotes/guides/intl/encoding.doc.html
      * @return a String[] with the list of file encoding
      */
-	
 	private String[] getListFileEncoding() {
 		return JOrphanUtils.split(JMeterUtils.getPropDefault("csvdataset.file.encoding_list", ""), "|");
 	}

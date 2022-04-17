@@ -1,20 +1,21 @@
-package com.di.jmeter.utils;
-
 /*
  *This was Plagiarised from Apache JMeter core.
- *Was unable to extend the existing FileServer
+ *Was unable to extend the existing FileServer, due to lack of constructor
  *Need to open a ticket with JMeter team to create a default constructor to enable FileServer Inheritance
  */
+
+package com.di.jmeter.utils;
 
 import org.apache.commons.collections.ArrayStack;
 import org.apache.commons.io.input.BOMInputStream;
 import org.apache.jmeter.gui.JMeterFileFilter;
 import org.apache.jmeter.save.CSVSaveService;
-import org.apache.jmeter.threads.JMeterContext;
 import org.apache.jmeter.util.JMeterUtils;
+import org.apache.jorphan.util.JMeterStopThreadException;
 import org.apache.jorphan.util.JOrphanUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.io.*;
 import java.security.SecureRandom;
 import java.util.ArrayList;
@@ -590,71 +591,19 @@ public class ExtFileServer {
         this.scriptName = scriptName;
     }
 
-    /**
-     * Get the next line of the named file
-     *
-     * @param filename        the filename or alias that was used to reserve the
-     *                        file
-     * @param recycle         - should file be restarted at EOF?
-     * @param ignoreFirstLine - Ignore first line
-     * @return String containing the next line in the file (null if EOF reached and
-     *         not recycle)
-     * @throws IOException when reading of the file fails, or the file was not
-     *                     reserved properly
-     */
-    public synchronized String readSequential(String filename, boolean recycle, boolean ignoreFirstLine) throws IOException {
-        FileEntry fileEntry = files.get(filename);
-        if (fileEntry != null) {
-            if (fileEntry.inputOutputObject == null) {
-                fileEntry.inputOutputObject = createBufferedReader(fileEntry);
-            } else if (!(fileEntry.inputOutputObject instanceof Reader)) {
-                throw new IOException("File " + filename + " already in use");
-            }
-            BufferedReader reader = (BufferedReader) fileEntry.inputOutputObject;
-            String line = reader.readLine();
-            if (line == null && recycle) {
-                reader.close();
-                reader = createBufferedReader(fileEntry);
-                fileEntry.inputOutputObject = reader;
-                if (ignoreFirstLine) {
-                    // read first line and forget
-                    reader.readLine();// NOSONAR
-                }
-                line = reader.readLine();
-            }
-            log.debug("Read:{}", line);
-            return line;
-        }
-        throw new IOException("File never reserved: " + filename);
-    }
 
-    public synchronized String readRandomLine(String filename, boolean recycle, boolean ignoreFirstLine) throws IOException {
-        FileEntry fileEntry = files.get(filename);
-        SecureRandom random = new SecureRandom();
-        CSVFileReader fileReader = CSVFileReader.getInstance();
-        if (fileEntry != null) {
-            if (fileEntry.inputOutputObject == null) {
-                fileEntry.inputOutputObject = createBufferedReader(fileEntry);
-            } else if (!(fileEntry.inputOutputObject instanceof Reader)) {
-                throw new IOException("File " + filename + " already in use");
-            }
-            BufferedReader reader = (BufferedReader) fileEntry.inputOutputObject;
-            String line = reader.readLine();
 
-            try {
-                if(fileReader.getList().isEmpty()){
-                    while (line != null) {
-                        fileReader.addToList(line);
-                        line = reader.readLine();
-                    }
-                }
-            }catch (IOException e) {
-                reader.close();
-                log.error(e.toString());
-            }
-            return fileReader.getFromList(random.nextInt(fileReader.getList().size()));
+    public synchronized String readSequential(String filename, boolean ignoreFirstLine, String updateValue, String ooValue) throws IOException {
+        boolean recycle = false;
+        if(ooValue.equalsIgnoreCase("recycle.continueCyclic")){
+            recycle = true;
         }
-        throw new IOException("File never reserved: " + filename);
+        String line = readLine(filename, recycle, ignoreFirstLine);
+        if (line == null && ooValue.equalsIgnoreCase("recycle.abortThread")){
+            throw new JMeterStopThreadException("End of file :" + filename + " detected for Extended CSV DataSet:"
+                    + filename + " configured with stopThread: " + ooValue);
+        }
+        return line;
     }
 
     public synchronized String getRandomLine(String filename, boolean recycle, boolean ignoreFirstLine) throws IOException {
@@ -666,12 +615,38 @@ public class ExtFileServer {
         return fileReader.getFromList(random.nextInt(fileReader.getList().size()));
     }
 
-    public String getUniqueLine(String filename, boolean ignoreFirstLine, int currPos, int startPos, int endPos) throws IOException {
+    public String getUniqueLine(String filename, boolean ignoreFirstLine, String recycle, int currPos, int startPos, int endPos) throws IOException {
+        CSVFileReader fileReader = CSVFileReader.getInstance();
+        String line = null;
         if(getListSize() < 1){
             loadCsv(filename, ignoreFirstLine);
         }
-        CSVFileReader fileReader = CSVFileReader.getInstance();
-        return fileReader.getFromList(currPos);
+        if(readPos.get() < getListSize()){
+            line = fileReader.getFromList(readPos.get());
+        }
+
+        if(recycle.equalsIgnoreCase("recycle.continueCyclic")){
+            if(currPos >= endPos){
+                this.readPos.set(startPos);
+            }else {
+                this.readPos.set(currPos + 1);
+            }
+        }else if(recycle.equalsIgnoreCase("recycle.abortThread")){
+            if(currPos <= endPos){
+                this.readPos.set(currPos + 1);
+            }else{
+                throw new JMeterStopThreadException("End of Block :" + filename + " detected for Extended CSV DataSet:"
+                        + filename + " configured with stopThread: " + recycle);
+            }
+
+        }else if(recycle.equalsIgnoreCase("recycle.continueLastValue")){
+            if(currPos >= endPos){
+                this.readPos.set(currPos);
+            }else{
+                this.readPos.set(currPos + 1);
+            }
+        }
+        return line;
     }
 
     public synchronized void loadCsv(String filename, boolean ignoreFirstLine) throws IOException {
