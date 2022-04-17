@@ -33,7 +33,6 @@ public class ExtendedCsvDataSet extends ConfigTestElement implements TestBean, L
 	private transient String updateValue; // Each iteration | Once
 	private transient String ooValue; // Abort Vuser | Continue cyclic manner | Continue with lastvalue
 	private transient String shareMode;
-	private transient boolean enableBlockSize;
 	private transient boolean autoAllocate;
 	private transient String blockSize;
 
@@ -84,7 +83,7 @@ public class ExtendedCsvDataSet extends ConfigTestElement implements TestBean, L
 					if(isQuotedData()){
 						lineValues = fServer.getParsedLine(alias, recycle, firstLineIsNames || ignoreFirstLine, delimiter.charAt(0));
 					}else{
-						String line = fServer.getUniqueLine(alias, recycle, ExtFileServer.getReadPos(), ExtFileServer.getStartPos(), ExtFileServer.getEndPos());
+						String line = fServer.getUniqueLine(alias, firstLineIsNames || ignoreFirstLine, ExtFileServer.getReadPos(), ExtFileServer.getStartPos(), ExtFileServer.getEndPos());
 						lineValues = JOrphanUtils.split(line, delimiter, false);
 					}
 				}catch (IOException e){
@@ -141,11 +140,15 @@ public class ExtendedCsvDataSet extends ConfigTestElement implements TestBean, L
 		switch (ExtendedCsvDataSetBeanInfo.getRecycleAsInt(getOoValue())){
 			case ExtendedCsvDataSetBeanInfo.CONTINUE_CYCLIC://0
 				if(getSelectRow().equalsIgnoreCase("selectRow.unique")){
-					ExtFileServer.setReadPos(ExtFileServer.getReadPos() + 1);
+					if((ExtFileServer.getReadPos() >= ExtFileServer.getEndPos())){
+						ExtFileServer.setReadPos(ExtFileServer.getStartPos());
+					}else {
+						ExtFileServer.setReadPos(ExtFileServer.getReadPos() + 1);
+					}
 				}
 				break;
 			case ExtendedCsvDataSetBeanInfo.ABORT_THREAD://1
-				if (lineValues.length == 0){
+				if (lineValues.length == 0 || (ExtFileServer.getReadPos() > ExtFileServer.getEndPos())){
 					throw new JMeterStopThreadException("End of file :" + getFilename() + " detected for Extended CSV DataSet:"
 							+ getName() + " configured with stopThread: " + getOoValue());
 				}else if(getSelectRow().equalsIgnoreCase("selectRow.unique")){
@@ -153,13 +156,18 @@ public class ExtendedCsvDataSet extends ConfigTestElement implements TestBean, L
 				}
 				break;
 			case ExtendedCsvDataSetBeanInfo.CONTINUE_WITH_LAST_VALUE://2
-				if(getSelectRow().equalsIgnoreCase("selectRow.unique")){
-					ExtFileServer.setReadPos(ExtFileServer.getReadPos());
-				}
 				if (!jMeterVariables.get(variables[0]).isEmpty()){
 					this.ooFlag = false;
 				}else{
 					this.ooFlag = true;
+				}
+				if(getSelectRow().equalsIgnoreCase("selectRow.unique")){
+					if((ExtFileServer.getReadPos() >= ExtFileServer.getEndPos())){
+						ExtFileServer.setReadPos(ExtFileServer.getReadPos());
+					}else {
+						ExtFileServer.setReadPos(ExtFileServer.getReadPos() + 1);
+						this.ooFlag = true;
+					}
 				}
 				break;
 			default:
@@ -231,20 +239,23 @@ public class ExtendedCsvDataSet extends ConfigTestElement implements TestBean, L
 	}
 
 	private void setAlias(final JMeterContext context, String alias) {
-
-		switch (ExtendedCsvDataSetBeanInfo.getShareModeAsInt(getShareMode())) {
-			case ExtendedCsvDataSetBeanInfo.SHARE_ALL:
-				this.alias = alias;
-				break;
-			case ExtendedCsvDataSetBeanInfo.SHARE_GROUP:
-				this.alias = alias + "@" + System.identityHashCode(context.getThreadGroup());
-				break;
-			case ExtendedCsvDataSetBeanInfo.SHARE_THREAD:
-				this.alias = alias + "@" + System.identityHashCode(context.getThread());
-				break;
-			default:
-				this.alias = alias + "@" + getShareMode();
-				break;
+		if(getSelectRow().equalsIgnoreCase("selectRow.Sequential")){
+			this.alias = alias + "@" + System.identityHashCode(context.getThread());
+		}else{
+			switch (ExtendedCsvDataSetBeanInfo.getShareModeAsInt(getShareMode())) {
+				case ExtendedCsvDataSetBeanInfo.SHARE_ALL:
+					this.alias = alias;
+					break;
+				case ExtendedCsvDataSetBeanInfo.SHARE_GROUP:
+					this.alias = alias + "@" + System.identityHashCode(context.getThreadGroup());
+					break;
+				case ExtendedCsvDataSetBeanInfo.SHARE_THREAD:
+					this.alias = alias + "@" + System.identityHashCode(context.getThread());
+					break;
+				default:
+					this.alias = alias + "@" + getShareMode();
+					break;
+			}
 		}
 	}
 
@@ -338,14 +349,6 @@ public class ExtendedCsvDataSet extends ConfigTestElement implements TestBean, L
 
 	public void setShareMode(String shareMode) {
 		this.shareMode = shareMode;
-	}
-
-	public boolean isEnableBlockSize() {
-		return enableBlockSize;
-	}
-
-	public void setEnableBlockSize(boolean enableBlockSize) {
-		this.enableBlockSize = enableBlockSize;
 	}
 
 	public boolean isAutoAllocate() {

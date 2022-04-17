@@ -24,7 +24,6 @@ public class ExtendedCsvDataSetBeanInfo extends BeanInfoSupport {
 	private static final String UPDATE_VALUE = "updateValue"; // Each iteration | Each occurrence | Once
 	private static final String OOVALUE = "ooValue"; // abort Vuser | Continue cyclic manner | continue with lastvalue
 	private static final String SHARE_MODE = "shareMode";
-	private static final String ENABLE_BLOCK_SIZE = "enableBlockSize";
 	private static final String AUTO_ALLOCATE = "autoAllocate";
 	private static final String BLOCK_SIZE = "blockSize";
 	
@@ -76,7 +75,7 @@ public class ExtendedCsvDataSetBeanInfo extends BeanInfoSupport {
 		createPropertyGroup("csv_data", new String[] { FILENAME, FILE_ENCODING, VARIABLE_NAMES, IGNORE_FIRST_LINE,
 				DELIMITER, QUOTED_DATA, SELECT_ROW, UPDATE_VALUE, OOVALUE, SHARE_MODE });
 		
-		createPropertyGroup("block_size", new String[]  { ENABLE_BLOCK_SIZE, AUTO_ALLOCATE, BLOCK_SIZE });
+		createPropertyGroup("block_size", new String[]  { AUTO_ALLOCATE, BLOCK_SIZE });
 
 		PropertyDescriptor p = property(FILENAME);
 		p.setValue(NOT_UNDEFINED, Boolean.TRUE);
@@ -158,13 +157,13 @@ public class ExtendedCsvDataSetBeanInfo extends BeanInfoSupport {
 		p.setValue(NOT_EXPRESSION, Boolean.FALSE);
 		p.setValue(TAGS, SHARE_TAGS);
 		
-		PropertyDescriptor allocateProp = property(ENABLE_BLOCK_SIZE);
-		allocateProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
-		allocateProp.setValue(DEFAULT, Boolean.FALSE);
-		allocateProp.setDisplayName("Enable block size");
-		allocateProp.setShortDescription("Enable block size per thread ");
+//		PropertyDescriptor allocateProp = property(ENABLE_BLOCK_SIZE);
+//		allocateProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
+//		allocateProp.setValue(DEFAULT, Boolean.FALSE);
+//		allocateProp.setDisplayName("Enable block size");
+//		allocateProp.setShortDescription("Enable block size per thread ");
 
-		allocateProp = property(AUTO_ALLOCATE);
+		PropertyDescriptor allocateProp = property(AUTO_ALLOCATE);
 		allocateProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
 		allocateProp.setValue(DEFAULT, Boolean.FALSE);
 		allocateProp.setDisplayName("Auto allocate");

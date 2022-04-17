@@ -666,13 +666,11 @@ public class ExtFileServer {
         return fileReader.getFromList(random.nextInt(fileReader.getList().size()));
     }
 
-    public String getUniqueLine(String filename, boolean recycle, int currPos, int startPos, int endPos) throws IOException {
-        CSVFileReader fileReader = CSVFileReader.getInstance();
-        if((currPos > endPos) && recycle){
-            return fileReader.getFromList(startPos);
-        }else if(currPos > endPos){
-            return null;
+    public String getUniqueLine(String filename, boolean ignoreFirstLine, int currPos, int startPos, int endPos) throws IOException {
+        if(getListSize() < 1){
+            loadCsv(filename, ignoreFirstLine);
         }
+        CSVFileReader fileReader = CSVFileReader.getInstance();
         return fileReader.getFromList(currPos);
     }
 
@@ -698,8 +696,9 @@ public class ExtFileServer {
                 reader.close();
                 log.error(e.toString());
             }
+        }else{
+            throw new IOException("File never reserved: " + filename);
         }
-        throw new IOException("File never reserved: " + filename);
     }
 
     public static int getListSize(){
