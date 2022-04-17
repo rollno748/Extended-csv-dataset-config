@@ -53,7 +53,7 @@ The below table is the combinations allowed while using this plugin
 
 
 ## 💲 Donate
-<a href="https://www.buymeacoffee.com/rollno748" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-green.png" alt="Buy Me A Coffee" style="max-width:15%;" ></a> 
+<a href="https://www.buymeacoffee.com/rollno748" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-green.png" alt="Buy Me A Coffee" style="max-width:7%;" ></a> 
 
 Please rate a star(:star2:) - If you like it.
 
