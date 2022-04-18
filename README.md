@@ -50,6 +50,12 @@ The below table is the combinations allowed while using this plugin
 |Unique|Each Iteration| Abort Thread |Enabled|
 |Unique|Once| NA   |NA|
 
+
+## Future Release in pipeline
+
+ * Create GUI class for UI instead of BeanInfo 
+ 
+
 ## References
 
  * CSV data set config
