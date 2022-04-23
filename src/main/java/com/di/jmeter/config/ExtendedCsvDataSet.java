@@ -70,7 +70,11 @@ public class ExtendedCsvDataSet extends ConfigTestElement implements TestBean, L
 		String[] lineValues = {};
 		if (variables == null) {
 			ExtFileServer.setReadPos(0);
-			initVars(fServer, context, delimiter);
+			try {
+				initVars(fServer, context, delimiter);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 
 		JMeterVariables jMeterVariables = context.getVariables();
@@ -148,14 +152,9 @@ public class ExtendedCsvDataSet extends ConfigTestElement implements TestBean, L
 		}
 	}
 
-	private void initBlockFeatures(String filename, JMeterContext context, ExtFileServer fServer, boolean autoAllocate, String blockSize) throws IOException{
+	private void initBlockFeatures(String filename, JMeterContext context, ExtFileServer fServer, boolean autoAllocate, String blockSize) {
 		int blockSizeInt;
 		String threadName = context.getThread().getThreadName();
-
-		if(fServer.getListSize() < 1){
-			fServer.reserveFile(filename, getFileEncoding(), alias, ignoreFirstLine);
-			fServer.loadCsv(filename, ignoreFirstLine);
-		}
 
 		if(autoAllocate){
 			blockSizeInt = ExtFileServer.getListSize() / JMeterContextService.getTotalThreads();
@@ -176,7 +175,7 @@ public class ExtendedCsvDataSet extends ConfigTestElement implements TestBean, L
 		}
 	}
 
-	private void initVars(ExtFileServer server, final JMeterContext context, String delim) {
+	private void initVars(ExtFileServer server, final JMeterContext context, String delim) throws IOException {
 		String fileName = getFilename().trim();
 		final String names = getVariableNames();
 		setAlias(context, fileName);
@@ -189,20 +188,22 @@ public class ExtendedCsvDataSet extends ConfigTestElement implements TestBean, L
 			try {
 				variables = CSVSaveService.csvSplitString(header, delim.charAt(0));
 				firstLineIsNames = true;ignoreFirstLine = true;
+				trimVarNames(variables);
 			} catch (IOException e) {
 				throw new IllegalArgumentException("Could not split CSV header line from file:" + fileName, e);
 			}
-		} else {
+		}
+
+		if(getSelectRow().equalsIgnoreCase("selectRow.sequential")){
 			server.reserveFile(fileName, getFileEncoding(), alias, ignoreFirstLine);
 			variables = JOrphanUtils.split(names, ",");
-		}
-		trimVarNames(variables);
-		if(getSelectRow().equalsIgnoreCase("selectRow.unique")){
-			try {
-				initBlockFeatures(alias, context, server, isAutoAllocate(), getBlockSize());
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+			trimVarNames(variables);
+		}else if(getSelectRow().equalsIgnoreCase("selectRow.unique") || getSelectRow().equalsIgnoreCase("selectRow.random")){
+			server.reserveFile(filename, getFileEncoding(), alias, ignoreFirstLine);
+			server.loadCsv(filename, ignoreFirstLine);
+			initBlockFeatures(alias, context, server, isAutoAllocate(), getBlockSize());
+			variables = JOrphanUtils.split(names, ",");
+			trimVarNames(variables);
 		}
 	}
 
@@ -255,7 +256,6 @@ public class ExtendedCsvDataSet extends ConfigTestElement implements TestBean, L
 	}
 
 	public void setVariableNames(String variableNames) {
-//		this.variableNames = variableNames;
 		if(!ignoreFirstLine){
 			this.variableNames = variableNames;
 		}
