@@ -27,6 +27,7 @@ import org.apache.jmeter.engine.util.NoConfigMerge;
 import org.apache.jmeter.save.CSVSaveService;
 import org.apache.jmeter.testbeans.TestBean;
 import org.apache.jmeter.threads.JMeterContext;
+import org.apache.jmeter.threads.JMeterContextService;
 import org.apache.jmeter.threads.JMeterVariables;
 import org.apache.jorphan.util.JMeterStopThreadException;
 import org.apache.jorphan.util.JOrphanUtils;
@@ -87,7 +88,7 @@ public class ExtendedCsvDataSet extends ConfigTestElement implements TestBean, L
 				}catch (IOException e){
 					LOGGER.error(e.toString());
 				}
-				LOGGER.debug("Sequential");
+				LOGGER.debug("Sequential :: " + lineValues);
 				break;
 			case ExtendedCsvDataSetBeanInfo.UNIQUE:
 				try{
@@ -100,7 +101,7 @@ public class ExtendedCsvDataSet extends ConfigTestElement implements TestBean, L
 				}catch (IOException e){
 					LOGGER.error(e.toString());
 				}
-				LOGGER.debug("Unique");
+				LOGGER.debug("Unique :: " + lineValues);
 				break;
 			case ExtendedCsvDataSetBeanInfo.RANDOM:
 				try{
@@ -113,10 +114,10 @@ public class ExtendedCsvDataSet extends ConfigTestElement implements TestBean, L
 				}catch(IOException e){
 					LOGGER.error(e.toString());
 				}
-				LOGGER.info("debug");
+				LOGGER.debug("Random :: " + lineValues);
 				break;
 			default:
-				LOGGER.info("Default");
+				LOGGER.debug("Invalid selection on Select row");
 				throw new JMeterStopThreadException("Invalid selection :" + getFilename() + " detected for Extended CSV DataSet:"
 						+ getName() + " configured to Select Row Parameter :" + getSelectRow());
 		}
@@ -141,7 +142,7 @@ public class ExtendedCsvDataSet extends ConfigTestElement implements TestBean, L
 				}
 				break;
 			default:
-				LOGGER.info("Default");
+				LOGGER.debug("Invalid selection on Update Value");
 				throw new JMeterStopThreadException("Invalid selection :" + getFilename() + " detected for Extended CSV DataSet:"
 						+ getName() + " configured to Select Row Parameter :" + getUpdateValue());
 		}
@@ -150,13 +151,14 @@ public class ExtendedCsvDataSet extends ConfigTestElement implements TestBean, L
 	private void initBlockFeatures(String filename, JMeterContext context, ExtFileServer fServer, boolean autoAllocate, String blockSize) throws IOException{
 		int blockSizeInt;
 		String threadName = context.getThread().getThreadName();
-		//Integer.parseInt(context.getThread().getThreadName().substring(context.getThread().getThreadName().lastIndexOf('-') + 1)))
-		if(ExtFileServer.getListSize() < 1){
+
+		if(fServer.getListSize() < 1){
 			fServer.reserveFile(filename, getFileEncoding(), alias, ignoreFirstLine);
-			fServer.loadCsv(filename, isIgnoreFirstLine());
+			fServer.loadCsv(filename, ignoreFirstLine);
 		}
+
 		if(autoAllocate){
-			blockSizeInt = ExtFileServer.getListSize() / context.getThreadGroup().getNumberOfThreads();
+			blockSizeInt = ExtFileServer.getListSize() / JMeterContextService.getTotalThreads();
 		}else{
 			blockSizeInt = Integer.parseInt(blockSize);
 		}
@@ -186,7 +188,7 @@ public class ExtendedCsvDataSet extends ConfigTestElement implements TestBean, L
 			String header = server.reserveFile(fileName, getFileEncoding(), alias, true);
 			try {
 				variables = CSVSaveService.csvSplitString(header, delim.charAt(0));
-				firstLineIsNames = true;
+				firstLineIsNames = true;ignoreFirstLine = true;
 			} catch (IOException e) {
 				throw new IllegalArgumentException("Could not split CSV header line from file:" + fileName, e);
 			}
@@ -253,7 +255,10 @@ public class ExtendedCsvDataSet extends ConfigTestElement implements TestBean, L
 	}
 
 	public void setVariableNames(String variableNames) {
-		this.variableNames = variableNames;
+//		this.variableNames = variableNames;
+		if(!ignoreFirstLine){
+			this.variableNames = variableNames;
+		}
 	}
 
 	public String getDelimiter() {

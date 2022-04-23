@@ -268,7 +268,7 @@ public class ExtFileServer {
             files.put(alias, fileEntry);
             if (hasHeader) {
                 try {
-                    fileEntry.headerLine = readLine(alias, false);
+                    fileEntry.headerLine = readLine(alias, true);
                     if (fileEntry.headerLine == null) {
                         fileEntry.exception = new EOFException("File is empty: " + fileEntry.file);
                     }
@@ -591,8 +591,6 @@ public class ExtFileServer {
         this.scriptName = scriptName;
     }
 
-
-
     public synchronized String readSequential(String filename, boolean ignoreFirstLine, String updateValue, String ooValue) throws IOException {
         boolean recycle = false;
         if(ooValue.equalsIgnoreCase("recycle.continueCyclic")){
@@ -609,9 +607,6 @@ public class ExtFileServer {
     public synchronized String getRandomLine(String filename, boolean recycle, boolean ignoreFirstLine) throws IOException {
         CSVFileReader fileReader = CSVFileReader.getInstance();
         SecureRandom random = new SecureRandom();
-        if(fileReader.getListSize() == 0){
-            this.loadCsv(filename, ignoreFirstLine);
-        }
         return fileReader.getFromList(random.nextInt(fileReader.getList().size()));
     }
 
@@ -674,6 +669,10 @@ public class ExtFileServer {
         }else{
             throw new IOException("File never reserved: " + filename);
         }
+    }
+
+    public static void removeList(){
+        CSVFileReader.removeList();
     }
 
     public static int getListSize(){

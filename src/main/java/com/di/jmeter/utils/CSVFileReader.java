@@ -34,26 +34,12 @@ public class CSVFileReader {
         return instance;
     }
 
-
-
-    public static int getAutoAllocateBlockSize() {
-        return autoAllocateBlockSize;
-    }
-
-    public static void setAutoAllocateBlockSize(int autoAllocateBlockSize) {
-        CSVFileReader.autoAllocateBlockSize = autoAllocateBlockSize;
-    }
-
     public static List<String> getList() {
         return list;
     }
 
     public static int getListSize(){
         return list.size();
-    }
-
-    public static void setList(List<String> list) {
-        CSVFileReader.list = list;
     }
 
     public static void addToList(String line){
@@ -64,4 +50,7 @@ public class CSVFileReader {
         return CSVFileReader.list.get(index);
     }
 
+    public static void removeList() {
+        CSVFileReader.list.clear();
+    }
 }
