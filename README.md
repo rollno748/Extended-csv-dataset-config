@@ -61,8 +61,9 @@ The below table is the combinations allowed while using this plugin
  * CSV data set config
 
 
-## 💲 Donate
-<a href="https://www.buymeacoffee.com/rollno748" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-green.png" alt="Buy Me A Coffee" style="max-width:7%;" ></a> 
+## 💲 Support Me
+[<a href="https://www.buymeacoffee.com/rollno748" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" height="45px" width="162px" alt="Buy Me A Coffee"></a>](https://www.buymeacoffee.com/rollno748)
+
 
 Please rate a star(:star2:) - If you like it.
 
