@@ -13,18 +13,14 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 
 package com.di.jmeter.config;
 
-import org.apache.jmeter.config.ConfigElement;
 import org.apache.jmeter.config.ConfigTestElement;
 import org.apache.jmeter.engine.event.LoopIterationEvent;
 import org.apache.jmeter.engine.event.LoopIterationListener;
-import org.apache.jmeter.engine.util.NoConfigMerge;
 import org.apache.jmeter.engine.util.NoThreadClone;
-import org.apache.jmeter.testbeans.TestBean;
 import org.apache.jmeter.testelement.TestStateListener;
 import org.apache.jmeter.testelement.ThreadListener;
 import org.slf4j.Logger;
@@ -38,27 +34,17 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
 
     private transient String filename;
     private transient String fileEncoding;
-
-
-
-
-    //Getters and Setters
-
-    public String getFilename() {
-        return filename;
-    }
-
-    public void setFilename(String filename) {
-        this.filename = filename;
-    }
-
-    public String getFileEncoding() {
-        return fileEncoding;
-    }
-
-    public void setFileEncoding(String fileEncoding) {
-        this.fileEncoding = fileEncoding;
-    }
+    private transient String variableNames;
+    private transient int ignoreFirstLine;
+    private transient String delimiter;
+    private transient int quotedData;
+//    private transient String selectRow; // Sequential | random | unique
+//    private transient String updateValue; // Each iteration | Once
+//    private transient String ooValue; // Abort Thread | Continue cyclic manner | Continue with lastValue
+//    private transient String sharingMode;
+//    private transient boolean autoAllocate;
+//    private transient boolean allocate;
+//    private transient String blockSize;
 
     @Override
     public void iterationStart(LoopIterationEvent loopIterationEvent) {
@@ -92,5 +78,55 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
     @Override
     public void threadFinished() {
 
+    }
+
+    //Getters and Setters
+
+    public String getFilename() {
+        return filename;
+    }
+
+    public void setFilename(String filename) {
+        this.filename = filename;
+    }
+
+    public String getFileEncoding() {
+        return fileEncoding;
+    }
+
+    public void setFileEncoding(String fileEncoding) {
+        this.fileEncoding = fileEncoding;
+    }
+
+    public String getVariableNames() {
+        return variableNames;
+    }
+
+    public void setVariableNames(String variableNames) {
+        this.variableNames = variableNames;
+    }
+
+    public int getIgnoreFirstLine() {
+        return ignoreFirstLine;
+    }
+
+    public void setIgnoreFirstLine(int ignoreFirstLine) {
+        this.ignoreFirstLine = ignoreFirstLine;
+    }
+
+    public String getDelimiter() {
+        return delimiter;
+    }
+
+    public void setDelimiter(String delimiter) {
+        this.delimiter = delimiter;
+    }
+
+    public int getQuotedData() {
+        return quotedData;
+    }
+
+    public void setQuotedData(int quotedData) {
+        this.quotedData = quotedData;
     }
 }
