@@ -10,8 +10,10 @@ import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 
-public class ExtendedCsvDataSetGui extends AbstractConfigGui {
+public class ExtendedCsvDataSetGui extends AbstractConfigGui implements ActionListener {
     private static final long serialVersionUID = 240L;
     private static final Logger LOGGER = LoggerFactory.getLogger(ExtendedCsvDataSetGui.class);
 
@@ -30,9 +32,12 @@ public class ExtendedCsvDataSetGui extends AbstractConfigGui {
     private JComboBox ignoreFirstLine;
     private JTextField delimiter;
     private JComboBox quotedData;
-//    private JTextField selectRow; // Sequential | random | unique
-//    private JTextField updateValue; // Each iteration | Once
-//    private JTextField ooValue; // Abort Thread | Continue cyclic manner | Continue with lastValue
+    private JRadioButton autoAllocate;
+    private JRadioButton allocate;
+    private JComboBox selectRow; // Sequential | random | unique
+    private JComboBox updateValue; // Each iteration | Once
+    private JComboBox ooValue; // Abort Thread | Continue cyclic manner | Continue with lastValue
+
     
     public ExtendedCsvDataSetGui(){
         initialiseGui();
@@ -47,14 +52,28 @@ public class ExtendedCsvDataSetGui extends AbstractConfigGui {
         add(topPanel, BorderLayout.NORTH);
 
         JPanel container = new JPanel(new BorderLayout());
-        container.add(getBoxPanel(), BorderLayout.NORTH);
+        container.add(getDataSourceConfigBox(), BorderLayout.NORTH);
+        container.add(getAllocateConfigBox(), BorderLayout.CENTER);
         add(container,BorderLayout.CENTER);
     }
 
-    private Box getBoxPanel() {
+    private Box getDataSourceConfigBox() {
         Box csvDataSourceConfigBox = Box.createVerticalBox();
         csvDataSourceConfigBox.add(getCsvDataSourceConfigPanel());
         return csvDataSourceConfigBox;
+    }
+
+    private Box getAllocateConfigBox(){
+        Box allocateBlockConfigBox = Box.createVerticalBox();
+        allocateBlockConfigBox.add(getAllocateBlockConfigBox());
+        return allocateBlockConfigBox;
+    }
+
+    private Component getAllocateBlockConfigBox() {
+        JPanel container = new JPanel(new BorderLayout());
+        container.add(getAllocateBlockPanel(), BorderLayout.NORTH);
+        add(container, BorderLayout.CENTER);
+        return container;
     }
 
     private JPanel getCsvDataSourceConfigPanel() {
@@ -62,6 +81,48 @@ public class ExtendedCsvDataSetGui extends AbstractConfigGui {
         container.add(getMainPanel(), BorderLayout.NORTH);
         add(container, BorderLayout.CENTER);
         return container;
+    }
+
+    private JPanel getAllocateBlockPanel() {
+        JPanel allocateConfigPanel = new JPanel(new GridBagLayout());
+        allocateConfigPanel.setBorder(BorderFactory.createTitledBorder("Allocate values to thread"));
+        allocateConfigPanel.setLayout(new BoxLayout(allocateConfigPanel, BoxLayout.Y_AXIS));
+
+        JRadioButton autoAllocate = new JRadioButton();
+        JLabel autoAllocateLabel = new JLabel("Automatically allocate block for threads");
+
+        JPanel radioButtonPanel1 = new JPanel();
+        radioButtonPanel1.setLayout(new FlowLayout(FlowLayout.LEFT));
+        radioButtonPanel1.add(autoAllocate);
+        radioButtonPanel1.add(autoAllocateLabel);
+        allocateConfigPanel.add(radioButtonPanel1);
+
+        JRadioButton allocate = new JRadioButton();
+        JLabel allocateLabel1 = new JLabel("Allocate");
+        JTextField blockSize = new JTextField(3);
+        blockSize.setEnabled(false);
+        JLabel allocateLabel2 = new JLabel(" values for each thread");
+
+        JPanel radioButtonPanel2 = new JPanel();
+        radioButtonPanel2.setLayout(new FlowLayout(FlowLayout.LEFT));
+        radioButtonPanel2.add(allocate);
+        radioButtonPanel2.add(allocateLabel1);
+        radioButtonPanel2.add(blockSize);
+        radioButtonPanel2.add(allocateLabel2);
+        allocateConfigPanel.add(radioButtonPanel2);
+
+        ButtonGroup allocationGroup = new ButtonGroup();
+        allocationGroup.add(autoAllocate);
+        allocationGroup.add(allocate);
+
+        allocate.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                blockSize.setEnabled(allocate.isSelected());
+            }
+        });
+
+        return allocateConfigPanel;
     }
 
     private JPanel getMainPanel(){
@@ -106,7 +167,19 @@ public class ExtendedCsvDataSetGui extends AbstractConfigGui {
 
         addToPanel(mainPanel, labelConstraints, 0, row, new JLabel("Allow Quoted Data: ", JLabel.CENTER));
         addToPanel(mainPanel, editConstraints, 1, row, quotedData = new JComboBox());
-//        row++;
+        row++;
+
+        addToPanel(mainPanel, labelConstraints, 0, row, new JLabel("Select Row: ", JLabel.CENTER));
+        addToPanel(mainPanel, editConstraints, 1, row, selectRow = new JComboBox());
+        row++;
+
+        addToPanel(mainPanel, labelConstraints, 0, row, new JLabel("Update Values: ", JLabel.CENTER));
+        addToPanel(mainPanel, editConstraints, 1, row, updateValue = new JComboBox());
+        row++;
+
+        addToPanel(mainPanel, labelConstraints, 0, row, new JLabel("When out of Values: ", JLabel.CENTER));
+        addToPanel(mainPanel, editConstraints, 1, row, ooValue = new JComboBox());
+        row++;
 
         return mainPanel;
     }
@@ -181,5 +254,10 @@ public class ExtendedCsvDataSetGui extends AbstractConfigGui {
     public void clearGui() {
         super.clearGui();
         initialiseGuiValues();
+    }
+
+    @Override
+    public void actionPerformed(ActionEvent e) {
+
     }
 }
