@@ -17,8 +17,8 @@
  */
 package com.di.jmeter.utils;
 
-        import java.util.ArrayList;
-        import java.util.List;
+import java.util.ArrayList;
+import java.util.List;
 
 public class CSVFileReader {
 

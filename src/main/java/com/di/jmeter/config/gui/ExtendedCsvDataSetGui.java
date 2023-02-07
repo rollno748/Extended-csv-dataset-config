@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.di.jmeter.config.gui;
 
 import com.di.jmeter.config.ExtendedCsvDataSetConfig;
@@ -12,7 +29,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.Vector;
 
 public class ExtendedCsvDataSetGui extends AbstractConfigGui implements ActionListener {
     private static final long serialVersionUID = 240L;
@@ -20,7 +36,7 @@ public class ExtendedCsvDataSetGui extends AbstractConfigGui implements ActionLi
 
     private static final String DISPLAY_NAME="Extended CSV Data Set Config";
     private JTextField filename;
-    private JTextField fileEncoding;
+    private JComboBox<String> fileEncoding;
     private JTextField variableNames;
     private JComboBox<Boolean> ignoreFirstLine;
     private JTextField delimiter;
@@ -30,20 +46,27 @@ public class ExtendedCsvDataSetGui extends AbstractConfigGui implements ActionLi
     private JComboBox<String> selectRow; // Sequential | random | unique
     private JComboBox<String> updateValue; // Each iteration | Once
     private JComboBox<String> ooValue; // Abort Thread | Continue cyclic manner | Continue with lastValue
+    private JTextField blockSize;
+    private String[] fileEncodingValues = {"UTF-8", "UTF-16", "ISO-8859-15", "US-ASCII"};
     private String[] selectRowValues = {"Sequential", "Random", "Unique"};
     private String[] updateValues = {"Each Iteration", "Once"};
     private String[] ooValues = {"Abort Thread", "Continue Cyclic", "Continue with Last Value"};
-    private Vector<Boolean> boolComboBoxItems;
+    private String[] boolValues = {"True", "False"};
 
-    
+
     public ExtendedCsvDataSetGui(){
-
-        boolComboBoxItems = new Vector<Boolean>();
-        boolComboBoxItems.add(Boolean.TRUE);
-        boolComboBoxItems.add(Boolean.FALSE);
-
         initGui();
-        initialiseGuiValues();
+        initGuiValues();
+    }
+
+    @Override
+    public String getLabelResource() {
+        return DISPLAY_NAME;
+    }
+
+    @Override
+    public String getStaticLabel() {
+        return DISPLAY_NAME;
     }
 
     private void initGui() {
@@ -72,22 +95,21 @@ public class ExtendedCsvDataSetGui extends AbstractConfigGui implements ActionLi
                 JButton browseButton;
                 addToPanel(csvDataSourcePanel, labelConstraints, 2, row, browseButton = new JButton("Browse..."));
                 row++;
-
                 GuiBuilderHelper.strechItemToComponent(filename, browseButton);
                 editConstraints.insets = new java.awt.Insets(2, 0, 0, 0);
                 labelConstraints.insets = new java.awt.Insets(2, 0, 0, 0);
                 browseButton.addActionListener(new BrowseAction(filename, false));
 
                 addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("File encoding: ", JLabel.CENTER));
-                addToPanel(csvDataSourcePanel, editConstraints, 1, row, fileEncoding = new JTextField(20));
+                addToPanel(csvDataSourcePanel, editConstraints, 1, row, fileEncoding = new JComboBox<>(fileEncodingValues));
                 row++;
 
                 addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("Variable Name(s): ", JLabel.CENTER));
-                addToPanel(csvDataSourcePanel, editConstraints, 1, row, variableNames = new JTextField(20));
+                addToPanel(csvDataSourcePanel, editConstraints, 1, row, variableNames = new JTextField(30));
                 row++;
 
                 addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("Consider first line as Variable Name: ", JLabel.CENTER));
-                addToPanel(csvDataSourcePanel, editConstraints, 1, row, ignoreFirstLine = new JComboBox(boolComboBoxItems));
+                addToPanel(csvDataSourcePanel, editConstraints, 1, row, ignoreFirstLine = new JComboBox(boolValues));
                 row++;
 
                 addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("Delimiter: ", JLabel.CENTER));
@@ -95,11 +117,11 @@ public class ExtendedCsvDataSetGui extends AbstractConfigGui implements ActionLi
                 row++;
 
                 addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("Allow Quoted Data: ", JLabel.CENTER));
-                addToPanel(csvDataSourcePanel, editConstraints, 1, row, quotedData = new JComboBox(boolComboBoxItems));
+                addToPanel(csvDataSourcePanel, editConstraints, 1, row, quotedData = new JComboBox(boolValues));
                 row++;
 
                 addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("Select Row: ", JLabel.CENTER));
-                addToPanel(csvDataSourcePanel, editConstraints, 1, row, selectRow = new JComboBox<>(selectRowValues));
+                addToPanel(csvDataSourcePanel, editConstraints, 1, row, selectRow = new JComboBox(selectRowValues));
                 row++;
 
                 addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("Update Values: ", JLabel.CENTER));
@@ -110,6 +132,7 @@ public class ExtendedCsvDataSetGui extends AbstractConfigGui implements ActionLi
                 addToPanel(csvDataSourcePanel, editConstraints, 1, row, ooValue = new JComboBox<>(ooValues));
                 row++;
 
+            fileEncoding.setEditable(true);
             csvDatasourceConfigPanel.add(csvDataSourcePanel, BorderLayout.NORTH);
             add(csvDatasourceConfigPanel, BorderLayout.CENTER);
             csvDataSourceConfigBox.add(csvDatasourceConfigPanel);
@@ -132,7 +155,7 @@ public class ExtendedCsvDataSetGui extends AbstractConfigGui implements ActionLi
 
             allocateRButton = new JRadioButton();
             JLabel allocateLabel1 = new JLabel("Allocate");
-            JTextField blockSize = new JTextField(3);
+            blockSize = new JTextField(3);
             blockSize.setEnabled(false);
             JLabel allocateLabel2 = new JLabel(" values for each thread");
             JPanel radioButtonPanel2 = new JPanel();
@@ -151,12 +174,16 @@ public class ExtendedCsvDataSetGui extends AbstractConfigGui implements ActionLi
             add(allocateBlockConfigBoxPanel, BorderLayout.CENTER);
             allocateBlockConfigBox.add(allocateBlockConfigBoxPanel);
 
+            ooValue.setEnabled(false);
             allocateConfigPanel.setEnabled(false);
             allocateBlockConfigBoxPanel.setEnabled(false);
             autoAllocateRButton.setEnabled(false);
             autoAllocateRButton.setSelected(false);
+            autoAllocateLabel.setEnabled(false);
             blockSize.setEnabled(false);
             allocateRButton.setEnabled(false);
+            allocateLabel1.setEnabled(false);
+            allocateLabel2.setEnabled(false);
 
         rootPanel.add(csvDataSourceConfigBox, BorderLayout.NORTH);
         rootPanel.add(allocateBlockConfigBox, BorderLayout.CENTER);
@@ -165,29 +192,33 @@ public class ExtendedCsvDataSetGui extends AbstractConfigGui implements ActionLi
         selectRow.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
+                LOGGER.info("Selection is {}", selectRow);
                 if(selectRow.getSelectedItem().equals("Unique")){
+                    ooValue.setEnabled(true);
                     allocateConfigPanel.setEnabled(true);
+                    autoAllocateLabel.setEnabled(true);
+                    allocateLabel1.setEnabled(true);
+                    allocateLabel2.setEnabled(true);
                     autoAllocateRButton.setEnabled(true);
                     allocateRButton.setEnabled(true);
                     autoAllocateRButton.setSelected(true);
-
+                    blockSize.setEnabled(false);
                 }else{
+                    ooValue.setEnabled(false);
                     allocateConfigPanel.setEnabled(false);
+                    autoAllocateLabel.setEnabled(false);
+                    allocateLabel1.setEnabled(false);
+                    allocateLabel2.setEnabled(false);
                     autoAllocateRButton.setEnabled(false);
                     allocateRButton.setEnabled(false);
                 }
-                LOGGER.debug("Selection is {}", e.paramString());
             }
         });
 
         autoAllocateRButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                if(selectRow.getSelectedItem().equals("Unique")){
-                    autoAllocateRButton.setEnabled(autoAllocateRButton.isSelected());
-                }else {
-                    autoAllocateRButton.setEnabled(false);
-                }
+                autoAllocateRButton.setEnabled(autoAllocateRButton.isSelected());
                 allocateRButton.setEnabled(true);
                 blockSize.setEnabled(false);
             }
@@ -196,28 +227,21 @@ public class ExtendedCsvDataSetGui extends AbstractConfigGui implements ActionLi
         allocateRButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
+                allocateLabel2.setEnabled(true);
                 blockSize.setEnabled(allocateRButton.isSelected());
             }
         });
     }
-
-    private void initialiseGuiValues() {
+    private void initGuiValues() {
         filename.setText("");
-        fileEncoding.setText("");
+        fileEncoding.setSelectedIndex(0);
         variableNames.setText("");
-//        ignoreFirstLine.setSelectedIndex(0);
-        delimiter.setText("");
-//        quotedData.setSelectedIndex(0);
-    }
-
-    @Override
-    public String getLabelResource() {
-        return DISPLAY_NAME;
-    }
-
-    @Override
-    public String getStaticLabel() {
-        return DISPLAY_NAME;
+        ignoreFirstLine.setSelectedIndex(0);
+        delimiter.setText(",");
+        quotedData.setSelectedItem(0);
+        selectRow.setSelectedItem(0);
+        updateValue.setSelectedItem(0);
+        ooValue.setSelectedItem(0);
     }
 
     @Override
@@ -232,33 +256,69 @@ public class ExtendedCsvDataSetGui extends AbstractConfigGui implements ActionLi
         configureTestElement(testElement);
         if (testElement instanceof ExtendedCsvDataSetConfig) {
             ExtendedCsvDataSetConfig extendedCsvDataSetConfig = (ExtendedCsvDataSetConfig) testElement;
+
             extendedCsvDataSetConfig.setFilename(this.filename.getText());
-            extendedCsvDataSetConfig.setFilename(this.fileEncoding.getText());
+            extendedCsvDataSetConfig.setFileEncoding(this.fileEncoding.getSelectedItem().toString());
             extendedCsvDataSetConfig.setVariableNames(this.variableNames.getText());
-//            extendedCsvDataSetConfig.setIgnoreFirstLine(this.ignoreFirstLine.getSelectedIndex());
-            extendedCsvDataSetConfig.setDelimiter(this.delimiter.getSelectedText());
-//            extendedCsvDataSetConfig.setQuotedData(this.quotedData.getSelectedIndex());
+            extendedCsvDataSetConfig.setIgnoreFirstLine(this.ignoreFirstLine.getSelectedIndex());
+            extendedCsvDataSetConfig.setDelimiter(this.delimiter.getText());
+            extendedCsvDataSetConfig.setQuotedData(this.quotedData.getSelectedIndex());
+            extendedCsvDataSetConfig.setSelectRow(this.selectRow.getSelectedItem().toString());
+            extendedCsvDataSetConfig.setUpdateValue(this.updateValue.getSelectedItem().toString());
+            extendedCsvDataSetConfig.setOoValue(this.ooValue.getSelectedItem().toString());
+            extendedCsvDataSetConfig.setBlockSize(this.blockSize.getText());
         }
 
-    }
-    public JComboBox getBooleanComboBox(){
-        String[] boolValues = { "true", "false" };
-        JComboBox comboBox = new JComboBox(boolValues);
-        return comboBox;
     }
 
     @Override
-    public void configure(TestElement element) {
-        super.configure(element);
-        if (element instanceof ExtendedCsvDataSetConfig) {
-            ExtendedCsvDataSetConfig extendedCsvDataSetConfig = (ExtendedCsvDataSetConfig) element;
+    public void configure(TestElement testElement) {
+        super.configure(testElement);
+
+        if (testElement instanceof ExtendedCsvDataSetConfig) {
+            ExtendedCsvDataSetConfig extendedCsvDataSetConfig = (ExtendedCsvDataSetConfig) testElement;
+
             filename.setText(extendedCsvDataSetConfig.getFilename());
-            fileEncoding.setText(extendedCsvDataSetConfig.getFileEncoding());
+            fileEncoding.setSelectedItem(extendedCsvDataSetConfig.getFileEncoding());
             variableNames.setText(extendedCsvDataSetConfig.getVariableNames());
-//            ignoreFirstLine.setSelectedIndex(extendedCsvDataSetConfig.getIgnoreFirstLine());
+            ignoreFirstLine.setSelectedIndex(extendedCsvDataSetConfig.isIgnoreFirstLine() ? 1 : 0);
             delimiter.setText(extendedCsvDataSetConfig.getDelimiter());
-//            quotedData.setSelectedIndex(extendedCsvDataSetConfig.getQuotedData());
+            quotedData.setSelectedIndex(extendedCsvDataSetConfig.isQuotedData() ? 1 : 0);
+            selectRow.setSelectedIndex(getSelectRowIndex(extendedCsvDataSetConfig.getSelectRow()));
+            updateValue.setSelectedItem(getUpdateValueIndex(extendedCsvDataSetConfig.getUpdateValue()));
+            ooValue.setSelectedItem(getOoValueIndex(extendedCsvDataSetConfig.getOoValue()));
+            blockSize.setText(extendedCsvDataSetConfig.getBlockSize());
         }
+    }
+
+    private int getOoValueIndex(String ooValue) {
+        int idx = 0;
+        for(int i = 0; i < ooValues.length; i++){
+            if(ooValue.equalsIgnoreCase(ooValues[i])){
+                idx=i;
+            }
+        }
+        return idx;
+    }
+
+    private int getUpdateValueIndex(String updateValue) {
+        int idx = 0;
+        for(int i = 0; i < updateValues.length; i++){
+            if(updateValue.equalsIgnoreCase(updateValues[i])){
+                idx=i;
+            }
+        }
+        return idx;
+    }
+
+    private int getSelectRowIndex(String selectRow) {
+        int idx = 0;
+        for(int i = 0; i < selectRowValues.length; i++){
+            if(selectRow.equalsIgnoreCase(selectRowValues[i])){
+                idx=i;
+            }
+        }
+        return idx;
     }
 
     private void addToPanel(JPanel panel, GridBagConstraints constraints, int col, int row, JComponent component) {
@@ -270,7 +330,7 @@ public class ExtendedCsvDataSetGui extends AbstractConfigGui implements ActionLi
     @Override
     public void clearGui() {
         super.clearGui();
-        initialiseGuiValues();
+        initGui();
     }
 
     @Override

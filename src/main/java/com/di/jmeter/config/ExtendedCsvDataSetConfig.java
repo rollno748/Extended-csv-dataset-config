@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.di.jmeter.config;
 
 import org.apache.jmeter.config.ConfigTestElement;
@@ -26,25 +25,22 @@ import org.apache.jmeter.testelement.ThreadListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThreadClone, LoopIterationListener, TestStateListener, ThreadListener {
 
     private static final long serialVersionUID = 767792680142202807L;
     private static final Logger LOGGER = LoggerFactory.getLogger(ExtendedCsvDataSetConfig.class);
-
-    private transient String filename;
-    private transient String fileEncoding;
-    private transient String variableNames;
-    private transient int ignoreFirstLine;
-    private transient String delimiter;
-    private transient int quotedData;
-//    private transient String selectRow; // Sequential | random | unique
-//    private transient String updateValue; // Each iteration | Once
-//    private transient String ooValue; // Abort Thread | Continue cyclic manner | Continue with lastValue
-//    private transient String sharingMode;
-//    private transient boolean autoAllocate;
-//    private transient boolean allocate;
-//    private transient String blockSize;
+    public static final String FILENAME = "filename";
+    public static final String FILE_ENCODING = "fileEncoding";
+    public static final String VARIABLE_NAMES = "variableNames";
+    public static final String DELIMITER = "delimiter";
+    public static final String IGNORE_FIRST_LINE = "ignoreFirstLine";
+    public static final String QUOTED_DATA = "quotedData";
+    public static final String SELECT_ROW = "selectRow";
+    public static final String UPDATE_VALUE = "updateValue";
+    public static final String OO_VALUE = "ooValue";
+    public static final String BLOCK_SIZE = "blockSize";
+    public static final String AUTO_ALLOCATE = "autoAllocate";
+    public static final String ALLOCATE = "allocate";
 
     @Override
     public void iterationStart(LoopIterationEvent loopIterationEvent) {
@@ -52,81 +48,108 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
 
     @Override
     public void testStarted() {
-
     }
-
-    @Override
-    public void testStarted(String s) {
-
-    }
-
-    @Override
-    public void testEnded() {
-
-    }
-
-    @Override
-    public void testEnded(String s) {
-
-    }
-
     @Override
     public void threadStarted() {
-
     }
 
     @Override
     public void threadFinished() {
-
     }
 
-    //Getters and Setters
+    @Override
+    public void testEnded() {
+    }
 
+    @Override
+    public void testStarted(String s) {
+        testStarted();
+    }
+
+    @Override
+    public void testEnded(String s) {
+        testEnded();
+    }
+
+
+    //Getters and Setters
     public String getFilename() {
-        return filename;
+        return getPropertyAsString(FILENAME);
     }
 
     public void setFilename(String filename) {
-        this.filename = filename;
+        setProperty(FILENAME, filename);
     }
 
     public String getFileEncoding() {
-        return fileEncoding;
+        return getPropertyAsString(FILE_ENCODING);
     }
 
     public void setFileEncoding(String fileEncoding) {
-        this.fileEncoding = fileEncoding;
+        setProperty(FILE_ENCODING, fileEncoding);
     }
 
     public String getVariableNames() {
-        return variableNames;
+        return getPropertyAsString(VARIABLE_NAMES);
     }
 
     public void setVariableNames(String variableNames) {
-        this.variableNames = variableNames;
-    }
-
-    public int getIgnoreFirstLine() {
-        return ignoreFirstLine;
-    }
-
-    public void setIgnoreFirstLine(int ignoreFirstLine) {
-        this.ignoreFirstLine = ignoreFirstLine;
+        setProperty(VARIABLE_NAMES, variableNames);
     }
 
     public String getDelimiter() {
-        return delimiter;
+        return getPropertyAsString(DELIMITER);
     }
 
     public void setDelimiter(String delimiter) {
-        this.delimiter = delimiter;
+        setProperty(DELIMITER, delimiter);
+    }
+    public String getSelectRow() {
+        return getPropertyAsString(SELECT_ROW);
     }
 
-    public int getQuotedData() {
-        return quotedData;
+    public void setSelectRow(String selectRow) {
+        setProperty(SELECT_ROW, selectRow);
     }
 
-    public void setQuotedData(int quotedData) {
-        this.quotedData = quotedData;
+    public String getUpdateValue() {
+        return getPropertyAsString(UPDATE_VALUE);
+    }
+
+    public void setUpdateValue(String updateValue) {
+        setProperty(UPDATE_VALUE, updateValue);
+    }
+    public String getOoValue() {
+        return getPropertyAsString(OO_VALUE);
+    }
+
+    public void setOoValue(String ooValue) {
+        setProperty(OO_VALUE, ooValue);
+    }
+
+
+    public void setAllocate(boolean allocate) {
+        setProperty(ALLOCATE, allocate);
+    }
+
+    public String getBlockSize() {
+        return getPropertyAsString(BLOCK_SIZE);
+    }
+
+    public void setBlockSize(String blockSize) {
+        setProperty(BLOCK_SIZE, blockSize);
+    }
+
+    public boolean isIgnoreFirstLine() {
+        return getPropertyAsBoolean(IGNORE_FIRST_LINE);
+    }
+    public void setIgnoreFirstLine(int selectedIndex) {
+        setProperty(IGNORE_FIRST_LINE, selectedIndex);
+    }
+    public boolean isQuotedData() {
+        return getPropertyAsBoolean(QUOTED_DATA);
+    }
+    public void setQuotedData(int selectedIndex) {
+        setProperty(IGNORE_FIRST_LINE, selectedIndex);
     }
 }
