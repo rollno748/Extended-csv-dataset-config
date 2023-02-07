@@ -12,176 +12,193 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.Vector;
 
 public class ExtendedCsvDataSetGui extends AbstractConfigGui implements ActionListener {
     private static final long serialVersionUID = 240L;
     private static final Logger LOGGER = LoggerFactory.getLogger(ExtendedCsvDataSetGui.class);
 
     private static final String DISPLAY_NAME="Extended CSV Data Set Config";
-
-//    private transient String selectRow; // Sequential | random | unique
-//    private transient String updateValue; // Each iteration | Once
-//    private transient String ooValue; // Abort Thread | Continue cyclic manner | Continue with lastValue
-//    private transient String sharingMode;
-//    private transient boolean autoAllocate;
-//    private transient boolean allocate;
-//    private transient String blockSize;
     private JTextField filename;
     private JTextField fileEncoding;
     private JTextField variableNames;
-    private JComboBox ignoreFirstLine;
+    private JComboBox<Boolean> ignoreFirstLine;
     private JTextField delimiter;
-    private JComboBox quotedData;
-    private JRadioButton autoAllocate;
-    private JRadioButton allocate;
-    private JComboBox selectRow; // Sequential | random | unique
-    private JComboBox updateValue; // Each iteration | Once
-    private JComboBox ooValue; // Abort Thread | Continue cyclic manner | Continue with lastValue
+    private JComboBox<Boolean> quotedData;
+    private JRadioButton autoAllocateRButton;
+    private JRadioButton allocateRButton;
+    private JComboBox<String> selectRow; // Sequential | random | unique
+    private JComboBox<String> updateValue; // Each iteration | Once
+    private JComboBox<String> ooValue; // Abort Thread | Continue cyclic manner | Continue with lastValue
+    private String[] selectRowValues = {"Sequential", "Random", "Unique"};
+    private String[] updateValues = {"Each Iteration", "Once"};
+    private String[] ooValues = {"Abort Thread", "Continue Cyclic", "Continue with Last Value"};
+    private Vector<Boolean> boolComboBoxItems;
 
     
     public ExtendedCsvDataSetGui(){
-        initialiseGui();
+
+        boolComboBoxItems = new Vector<Boolean>();
+        boolComboBoxItems.add(Boolean.TRUE);
+        boolComboBoxItems.add(Boolean.FALSE);
+
+        initGui();
         initialiseGuiValues();
     }
 
-
-    private void initialiseGui() {
+    private void initGui() {
         setLayout(new BorderLayout(0, 5));
         setBorder(makeBorder());
         Container topPanel = makeTitlePanel();
         add(topPanel, BorderLayout.NORTH);
 
-        JPanel container = new JPanel(new BorderLayout());
-        container.add(getDataSourceConfigBox(), BorderLayout.NORTH);
-        container.add(getAllocateConfigBox(), BorderLayout.CENTER);
-        add(container,BorderLayout.CENTER);
-    }
+        JPanel rootPanel = new JPanel(new BorderLayout());
+            Box csvDataSourceConfigBox = Box.createVerticalBox();
+            JPanel csvDatasourceConfigPanel = new JPanel(new BorderLayout());
+                JPanel csvDataSourcePanel = new JPanel(new GridBagLayout());
+                csvDataSourcePanel.setBorder(BorderFactory.createTitledBorder("Configure the CSV Data Source")); //$NON-NLS-1$
 
-    private Box getDataSourceConfigBox() {
-        Box csvDataSourceConfigBox = Box.createVerticalBox();
-        csvDataSourceConfigBox.add(getCsvDataSourceConfigPanel());
-        return csvDataSourceConfigBox;
-    }
+                GridBagConstraints labelConstraints = new GridBagConstraints();
+                labelConstraints.anchor = GridBagConstraints.FIRST_LINE_END;
 
-    private Box getAllocateConfigBox(){
-        Box allocateBlockConfigBox = Box.createVerticalBox();
-        allocateBlockConfigBox.add(getAllocateBlockConfigBox());
-        return allocateBlockConfigBox;
-    }
+                GridBagConstraints editConstraints = new GridBagConstraints();
+                editConstraints.anchor = GridBagConstraints.FIRST_LINE_START;
+                editConstraints.weightx = 1.0;
+                editConstraints.fill = GridBagConstraints.HORIZONTAL;
 
-    private Component getAllocateBlockConfigBox() {
-        JPanel container = new JPanel(new BorderLayout());
-        container.add(getAllocateBlockPanel(), BorderLayout.NORTH);
-        add(container, BorderLayout.CENTER);
-        return container;
-    }
+                int row = 0;
+                addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("Filename: ", JLabel.RIGHT));
+                addToPanel(csvDataSourcePanel, editConstraints, 1, row, filename = new JTextField(20));
+                JButton browseButton;
+                addToPanel(csvDataSourcePanel, labelConstraints, 2, row, browseButton = new JButton("Browse..."));
+                row++;
 
-    private JPanel getCsvDataSourceConfigPanel() {
-        JPanel container = new JPanel(new BorderLayout());
-        container.add(getMainPanel(), BorderLayout.NORTH);
-        add(container, BorderLayout.CENTER);
-        return container;
-    }
+                GuiBuilderHelper.strechItemToComponent(filename, browseButton);
+                editConstraints.insets = new java.awt.Insets(2, 0, 0, 0);
+                labelConstraints.insets = new java.awt.Insets(2, 0, 0, 0);
+                browseButton.addActionListener(new BrowseAction(filename, false));
 
-    private JPanel getAllocateBlockPanel() {
-        JPanel allocateConfigPanel = new JPanel(new GridBagLayout());
-        allocateConfigPanel.setBorder(BorderFactory.createTitledBorder("Allocate values to thread"));
-        allocateConfigPanel.setLayout(new BoxLayout(allocateConfigPanel, BoxLayout.Y_AXIS));
+                addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("File encoding: ", JLabel.CENTER));
+                addToPanel(csvDataSourcePanel, editConstraints, 1, row, fileEncoding = new JTextField(20));
+                row++;
 
-        JRadioButton autoAllocate = new JRadioButton();
-        JLabel autoAllocateLabel = new JLabel("Automatically allocate block for threads");
+                addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("Variable Name(s): ", JLabel.CENTER));
+                addToPanel(csvDataSourcePanel, editConstraints, 1, row, variableNames = new JTextField(20));
+                row++;
 
-        JPanel radioButtonPanel1 = new JPanel();
-        radioButtonPanel1.setLayout(new FlowLayout(FlowLayout.LEFT));
-        radioButtonPanel1.add(autoAllocate);
-        radioButtonPanel1.add(autoAllocateLabel);
-        allocateConfigPanel.add(radioButtonPanel1);
+                addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("Consider first line as Variable Name: ", JLabel.CENTER));
+                addToPanel(csvDataSourcePanel, editConstraints, 1, row, ignoreFirstLine = new JComboBox(boolComboBoxItems));
+                row++;
 
-        JRadioButton allocate = new JRadioButton();
-        JLabel allocateLabel1 = new JLabel("Allocate");
-        JTextField blockSize = new JTextField(3);
-        blockSize.setEnabled(false);
-        JLabel allocateLabel2 = new JLabel(" values for each thread");
+                addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("Delimiter: ", JLabel.CENTER));
+                addToPanel(csvDataSourcePanel, editConstraints, 1, row, delimiter = new JTextField(20));
+                row++;
 
-        JPanel radioButtonPanel2 = new JPanel();
-        radioButtonPanel2.setLayout(new FlowLayout(FlowLayout.LEFT));
-        radioButtonPanel2.add(allocate);
-        radioButtonPanel2.add(allocateLabel1);
-        radioButtonPanel2.add(blockSize);
-        radioButtonPanel2.add(allocateLabel2);
-        allocateConfigPanel.add(radioButtonPanel2);
+                addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("Allow Quoted Data: ", JLabel.CENTER));
+                addToPanel(csvDataSourcePanel, editConstraints, 1, row, quotedData = new JComboBox(boolComboBoxItems));
+                row++;
 
-        ButtonGroup allocationGroup = new ButtonGroup();
-        allocationGroup.add(autoAllocate);
-        allocationGroup.add(allocate);
+                addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("Select Row: ", JLabel.CENTER));
+                addToPanel(csvDataSourcePanel, editConstraints, 1, row, selectRow = new JComboBox<>(selectRowValues));
+                row++;
 
-        allocate.addActionListener(new ActionListener() {
+                addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("Update Values: ", JLabel.CENTER));
+                addToPanel(csvDataSourcePanel, editConstraints, 1, row, updateValue = new JComboBox<>(updateValues));
+                row++;
+
+                addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("When out of Values: ", JLabel.CENTER));
+                addToPanel(csvDataSourcePanel, editConstraints, 1, row, ooValue = new JComboBox<>(ooValues));
+                row++;
+
+            csvDatasourceConfigPanel.add(csvDataSourcePanel, BorderLayout.NORTH);
+            add(csvDatasourceConfigPanel, BorderLayout.CENTER);
+            csvDataSourceConfigBox.add(csvDatasourceConfigPanel);
+
+
+            Box allocateBlockConfigBox = Box.createVerticalBox();
+            JPanel allocateBlockConfigBoxPanel = new JPanel(new BorderLayout());
+            JPanel allocateConfigPanel = new JPanel(new GridBagLayout());
+            allocateConfigPanel.setBorder(BorderFactory.createTitledBorder("Allocate values to thread"));
+            allocateConfigPanel.setLayout(new BoxLayout(allocateConfigPanel, BoxLayout.Y_AXIS));
+
+            autoAllocateRButton = new JRadioButton();
+            JLabel autoAllocateLabel = new JLabel("Automatically allocate block for threads");
+            JPanel radioButtonPanel1 = new JPanel();
+            radioButtonPanel1.setLayout(new FlowLayout(FlowLayout.LEFT));
+            radioButtonPanel1.add(autoAllocateRButton);
+            radioButtonPanel1.add(autoAllocateLabel);
+            radioButtonPanel1.setEnabled(true);
+            allocateConfigPanel.add(radioButtonPanel1);
+
+            allocateRButton = new JRadioButton();
+            JLabel allocateLabel1 = new JLabel("Allocate");
+            JTextField blockSize = new JTextField(3);
+            blockSize.setEnabled(false);
+            JLabel allocateLabel2 = new JLabel(" values for each thread");
+            JPanel radioButtonPanel2 = new JPanel();
+            radioButtonPanel2.setLayout(new FlowLayout(FlowLayout.LEFT));
+            radioButtonPanel2.add(allocateRButton);
+            radioButtonPanel2.add(allocateLabel1);
+            radioButtonPanel2.add(blockSize);
+            radioButtonPanel2.add(allocateLabel2);
+            allocateConfigPanel.add(radioButtonPanel2);
+
+            ButtonGroup allocationGroup = new ButtonGroup();
+            allocationGroup.add(autoAllocateRButton);
+            allocationGroup.add(allocateRButton);
+
+            allocateBlockConfigBoxPanel.add(allocateConfigPanel, BorderLayout.NORTH);
+            add(allocateBlockConfigBoxPanel, BorderLayout.CENTER);
+            allocateBlockConfigBox.add(allocateBlockConfigBoxPanel);
+
+            allocateConfigPanel.setEnabled(false);
+            allocateBlockConfigBoxPanel.setEnabled(false);
+            autoAllocateRButton.setEnabled(false);
+            autoAllocateRButton.setSelected(false);
+            blockSize.setEnabled(false);
+            allocateRButton.setEnabled(false);
+
+        rootPanel.add(csvDataSourceConfigBox, BorderLayout.NORTH);
+        rootPanel.add(allocateBlockConfigBox, BorderLayout.CENTER);
+        add(rootPanel,BorderLayout.CENTER);
+
+        selectRow.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                blockSize.setEnabled(allocate.isSelected());
+                if(selectRow.getSelectedItem().equals("Unique")){
+                    allocateConfigPanel.setEnabled(true);
+                    autoAllocateRButton.setEnabled(true);
+                    allocateRButton.setEnabled(true);
+                    autoAllocateRButton.setSelected(true);
+
+                }else{
+                    allocateConfigPanel.setEnabled(false);
+                    autoAllocateRButton.setEnabled(false);
+                    allocateRButton.setEnabled(false);
+                }
+                LOGGER.debug("Selection is {}", e.paramString());
             }
         });
 
-        return allocateConfigPanel;
-    }
+        autoAllocateRButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if(selectRow.getSelectedItem().equals("Unique")){
+                    autoAllocateRButton.setEnabled(autoAllocateRButton.isSelected());
+                }else {
+                    autoAllocateRButton.setEnabled(false);
+                }
+                allocateRButton.setEnabled(true);
+                blockSize.setEnabled(false);
+            }
+        });
 
-    private JPanel getMainPanel(){
-        JPanel mainPanel = new JPanel(new GridBagLayout());
-        mainPanel.setBorder(BorderFactory.createTitledBorder("Configure the CSV Data Source")); //$NON-NLS-1$
-
-        GridBagConstraints labelConstraints = new GridBagConstraints();
-        labelConstraints.anchor = GridBagConstraints.FIRST_LINE_END;
-
-        GridBagConstraints editConstraints = new GridBagConstraints();
-        editConstraints.anchor = GridBagConstraints.FIRST_LINE_START;
-        editConstraints.weightx = 1.0;
-        editConstraints.fill = GridBagConstraints.HORIZONTAL;
-
-        int row = 0;
-        addToPanel(mainPanel, labelConstraints, 0, row, new JLabel("Filename: ", JLabel.RIGHT));
-        addToPanel(mainPanel, editConstraints, 1, row, filename = new JTextField(20));
-        JButton browseButton;
-        addToPanel(mainPanel, labelConstraints, 2, row, browseButton = new JButton("Browse..."));
-        row++;
-
-        GuiBuilderHelper.strechItemToComponent(filename, browseButton);
-        editConstraints.insets = new java.awt.Insets(2, 0, 0, 0);
-        labelConstraints.insets = new java.awt.Insets(2, 0, 0, 0);
-        browseButton.addActionListener(new BrowseAction(filename, false));
-
-        addToPanel(mainPanel, labelConstraints, 0, row, new JLabel("File encoding: ", JLabel.CENTER));
-        addToPanel(mainPanel, editConstraints, 1, row, fileEncoding = new JTextField(20));
-        row++;
-
-        addToPanel(mainPanel, labelConstraints, 0, row, new JLabel("Variable Name(s): ", JLabel.CENTER));
-        addToPanel(mainPanel, editConstraints, 1, row, variableNames = new JTextField(20));
-        row++;
-
-        addToPanel(mainPanel, labelConstraints, 0, row, new JLabel("Consider first line as Variable Name: ", JLabel.CENTER));
-        addToPanel(mainPanel, editConstraints, 1, row, ignoreFirstLine = new JComboBox());
-        row++;
-
-        addToPanel(mainPanel, labelConstraints, 0, row, new JLabel("Delimiter: ", JLabel.CENTER));
-        addToPanel(mainPanel, editConstraints, 1, row, delimiter = new JTextField(20));
-        row++;
-
-        addToPanel(mainPanel, labelConstraints, 0, row, new JLabel("Allow Quoted Data: ", JLabel.CENTER));
-        addToPanel(mainPanel, editConstraints, 1, row, quotedData = new JComboBox());
-        row++;
-
-        addToPanel(mainPanel, labelConstraints, 0, row, new JLabel("Select Row: ", JLabel.CENTER));
-        addToPanel(mainPanel, editConstraints, 1, row, selectRow = new JComboBox());
-        row++;
-
-        addToPanel(mainPanel, labelConstraints, 0, row, new JLabel("Update Values: ", JLabel.CENTER));
-        addToPanel(mainPanel, editConstraints, 1, row, updateValue = new JComboBox());
-        row++;
-
-        addToPanel(mainPanel, labelConstraints, 0, row, new JLabel("When out of Values: ", JLabel.CENTER));
-        addToPanel(mainPanel, editConstraints, 1, row, ooValue = new JComboBox());
-        row++;
-
-        return mainPanel;
+        allocateRButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                blockSize.setEnabled(allocateRButton.isSelected());
+            }
+        });
     }
 
     private void initialiseGuiValues() {
