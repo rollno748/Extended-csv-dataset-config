@@ -17,7 +17,6 @@
 package com.di.jmeter.config;
 
 import com.di.jmeter.utils.ExtFileServer;
-import jodd.csselly.selector.PseudoClass;
 import org.apache.jmeter.config.ConfigTestElement;
 import org.apache.jmeter.engine.event.LoopIterationEvent;
 import org.apache.jmeter.engine.event.LoopIterationListener;
@@ -41,29 +40,16 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
     public static final String SELECT_ROW = "selectRow";
     public static final String UPDATE_VALUE = "updateValue";
     public static final String OO_VALUE = "ooValue";
-    public static final String BLOCK_SIZE = "blockSize";
-    public static final String ALLOCATE = "allocate";
     public static final String AUTO_ALLOCATE = "autoAllocate";
+    public static final String ALLOCATE = "allocate";
+    public static final String BLOCK_SIZE = "blockSize";
 
-    //    private boolean recycle = false;
+//    private boolean recycle = false;
 //    private transient String[] variables;
 //    private transient String alias;
 //    private boolean firstLineIsNames = false;
 //    private boolean updateOnceFlag = true;
 
-
-//    private transient String filename;
-//    private transient String fileEncoding;
-//    private transient String variableNames;
-//    private transient boolean ignoreFirstLine;
-//    private transient String delimiter;
-//    private transient boolean quotedData;
-//    private transient String selectRow; // Sequential | random | unique
-//    private transient String updateValue; // Each iteration | Once
-//    private transient String ooValue; // Abort Thread | Continue cyclic manner | Continue with lastValue
-//    private transient boolean autoAllocate;
-//    private transient boolean allocate;
-//    private transient String blockSize;
 
     @Override
     public void iterationStart(LoopIterationEvent loopIterationEvent) {
@@ -206,86 +192,3 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
                 getDelimiter(),isQuotedData(),getSelectRow(),getUpdateValue(),getOoValue(),isAllocate(),isAutoAllocate(),getBlockSize());
     }
 }
-
-/*
- public String getFilename() {
-        return getPropertyAsString(FILENAME);
-    }
-
-    public void setFilename(String filename) {
-        setProperty(FILENAME, filename);
-    }
-
-    public String getFileEncoding() {
-        return getPropertyAsString(FILE_ENCODING);
-    }
-
-    public void setFileEncoding(String fileEncoding) {
-        setProperty(FILE_ENCODING, fileEncoding);
-    }
-
-    public String getVariableNames() {
-        return getPropertyAsString(VARIABLE_NAMES);
-    }
-
-    public void setVariableNames(String variableNames) {
-        setProperty(VARIABLE_NAMES, variableNames);
-    }
-
-    public String getDelimiter() {
-        return getPropertyAsString(DELIMITER);
-    }
-
-    public void setDelimiter(String delimiter) {
-        setProperty(DELIMITER, delimiter);
-    }
-    public String getSelectRow() {
-        return getPropertyAsString(SELECT_ROW);
-    }
-
-    public void setSelectRow(String selectRow) {
-        setProperty(SELECT_ROW, selectRow);
-    }
-
-    public String getUpdateValue() {
-        return getPropertyAsString(UPDATE_VALUE);
-    }
-
-    public void setUpdateValue(String updateValue) {
-        setProperty(UPDATE_VALUE, updateValue);
-    }
-    public String getOoValue() {
-        return getPropertyAsString(OO_VALUE);
-    }
-
-    public void setOoValue(String ooValue) {
-        setProperty(OO_VALUE, ooValue);
-    }
-
-
-    public void setAllocate(boolean allocate) {
-        setProperty(ALLOCATE, allocate);
-    }
-
-    public String getBlockSize() {
-        return getPropertyAsString(BLOCK_SIZE);
-    }
-
-    public void setBlockSize(String blockSize) {
-        setProperty(BLOCK_SIZE, blockSize);
-    }
-
-    public boolean isIgnoreFirstLine() {
-        return getPropertyAsBoolean(IGNORE_FIRST_LINE);
-    }
-    public void setIgnoreFirstLine(int selectedIndex) {
-        setProperty(IGNORE_FIRST_LINE, selectedIndex);
-    }
-    public boolean isQuotedData() {
-        return getPropertyAsBoolean(QUOTED_DATA);
-    }
-    public void setQuotedData(int selectedIndex) {
-        setProperty(IGNORE_FIRST_LINE, selectedIndex);
-    }
- */
-

@@ -25,11 +25,10 @@ import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Objects;
 
 
 public class ExtendedCsvDataSetGui extends AbstractConfigGui {
@@ -176,74 +175,67 @@ public class ExtendedCsvDataSetGui extends AbstractConfigGui {
         ooValueCBox.setEnabled(false);
         allocateConfigPanel.setEnabled(false);
         allocateBlockConfigBoxPanel.setEnabled(false);
+
         autoAllocateRButton.setEnabled(false);
-        autoAllocateRButton.setSelected(false);
         autoAllocateLabel.setEnabled(false);
-        blockSizeField.setEnabled(false);
+        autoAllocateRButton.setSelected(false);
+
         allocateRButton.setEnabled(false);
         allocateLabel1.setEnabled(false);
         allocateLabel2.setEnabled(false);
+        allocateRButton.setSelected(false);
+
+        blockSizeField.setEnabled(false);
 
         rootPanel.add(csvDataSourceConfigBox, BorderLayout.NORTH);
         rootPanel.add(allocateBlockConfigBox, BorderLayout.CENTER);
         add(rootPanel,BorderLayout.CENTER);
 
-        selectRowCBox.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                LOGGER.info("Selection is {}", selectRowCBox);
-                if(selectRowCBox.getSelectedItem().equals("Unique")){
-                    ooValueCBox.setEnabled(true);
-                    allocateConfigPanel.setEnabled(true);
-                    autoAllocateLabel.setEnabled(true);
-                    allocateLabel1.setEnabled(true);
-                    allocateLabel2.setEnabled(true);
-                    autoAllocateRButton.setEnabled(true);
-                    allocateRButton.setEnabled(true);
-                    autoAllocateRButton.setSelected(true);
-                    blockSizeField.setEnabled(false);
-                }else{
-                    ooValueCBox.setEnabled(false);
-                    allocateConfigPanel.setEnabled(false);
-                    autoAllocateLabel.setEnabled(false);
-                    allocateLabel1.setEnabled(false);
-                    allocateLabel2.setEnabled(false);
-                    autoAllocateRButton.setEnabled(false);
-                    allocateRButton.setEnabled(false);
-                }
-            }
-        });
-
-        autoAllocateRButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                autoAllocateRButton.setEnabled(autoAllocateRButton.isSelected());
+        selectRowCBox.addActionListener(e -> {
+            LOGGER.info("Selection is {}", selectRowCBox);
+            if(Objects.equals(selectRowCBox.getSelectedItem(), "Unique")){
+                ooValueCBox.setEnabled(true);
+                allocateConfigPanel.setEnabled(true);
+                autoAllocateLabel.setEnabled(true);
+                allocateLabel1.setEnabled(true);
+                allocateLabel2.setEnabled(true);
+                autoAllocateRButton.setEnabled(true);
                 allocateRButton.setEnabled(true);
+                autoAllocateRButton.setSelected(true);
+                blockSizeField.setEnabled(true);
+            }else{
+                ooValueCBox.setEnabled(false);
+                allocateConfigPanel.setEnabled(false);
+                autoAllocateLabel.setEnabled(false);
+                allocateLabel1.setEnabled(false);
+                allocateLabel2.setEnabled(false);
+                autoAllocateRButton.setEnabled(false);
+                allocateRButton.setEnabled(false);
                 blockSizeField.setEnabled(false);
             }
         });
 
-        allocateRButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                allocateLabel2.setEnabled(true);
-                blockSizeField.setEnabled(allocateRButton.isSelected());
-            }
+        autoAllocateRButton.addActionListener(e -> {
+            autoAllocateRButton.setEnabled(autoAllocateRButton.isSelected());
+            allocateRButton.setEnabled(true);
+            blockSizeField.setEnabled(false);
         });
 
-        viewFileButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                try {
-                    if(filenameField.getText().equals("") || filenameField.getText().isEmpty()){
-                        throw new FileNotFoundException();
-                    }
-                    Desktop.getDesktop().edit(new File(filenameField.getText()));
-                } catch (FileNotFoundException fne){
-                    JOptionPane.showMessageDialog(new ExtendedCsvDataSetGui(),"Invalid File path.");
-                } catch (IOException ex) {
-                    throw new RuntimeException(ex);
+        allocateRButton.addActionListener(e -> {
+            allocateLabel2.setEnabled(true);
+            blockSizeField.setEnabled(allocateRButton.isSelected());
+        });
+
+        viewFileButton.addActionListener(e -> {
+            try {
+                if(filenameField.getText().equals("") || filenameField.getText().isEmpty()){
+                    throw new FileNotFoundException();
                 }
+                Desktop.getDesktop().edit(new File(filenameField.getText()));
+            } catch (FileNotFoundException fne){
+                JOptionPane.showMessageDialog(new ExtendedCsvDataSetGui(),"Invalid File path.");
+            } catch (IOException ex) {
+                throw new RuntimeException(ex);
             }
         });
         initGuiValues();
@@ -258,18 +250,13 @@ public class ExtendedCsvDataSetGui extends AbstractConfigGui {
         selectRowCBox.setSelectedIndex(0);
         updateValueCBox.setSelectedIndex(0);
         ooValueCBox.setSelectedIndex(0);
-        autoAllocateRButton.setSelected(false);
-        allocateRButton.setSelected(false);
-        blockSizeField.setText("0");
     }
-
     @Override
     public TestElement createTestElement() {
         ExtendedCsvDataSetConfig element = new ExtendedCsvDataSetConfig();
         modifyTestElement(element);
         return element;
     }
-
     @Override
     public void modifyTestElement(TestElement element) {
         configureTestElement(element);
@@ -284,11 +271,13 @@ public class ExtendedCsvDataSetGui extends AbstractConfigGui {
             eCsvDataSetConfig.setSelectRow(selectRowCBox.getItemAt(selectRowCBox.getSelectedIndex()));
             eCsvDataSetConfig.setUpdateValue(updateValueCBox.getItemAt(updateValueCBox.getSelectedIndex()));
             eCsvDataSetConfig.setOoValue(ooValueCBox.getItemAt(ooValueCBox.getSelectedIndex()));
+            eCsvDataSetConfig.setAutoAllocate(autoAllocateRButton.isSelected());
+            eCsvDataSetConfig.setAllocate(allocateRButton.isSelected());
+            eCsvDataSetConfig.setBlockSize(blockSizeField.getText());
             LOGGER.debug("{}", eCsvDataSetConfig.printAllProperties());
         }
 
     }
-
     @Override
     public void configure(TestElement element) {
         super.configure(element);
@@ -308,28 +297,16 @@ public class ExtendedCsvDataSetGui extends AbstractConfigGui {
             blockSizeField.setText(config.getBlockSize());
         }
     }
-
     private void addToPanel(JPanel panel, GridBagConstraints constraints, int col, int row, JComponent component) {
         constraints.gridx = col;
         constraints.gridy = row;
         panel.add(component, constraints);
-    }
-
-    private int getIndex(String[] source, String comp){
-        int idx=0;
-        for (int i=0; i< source.length; i++){
-            if(source[0].equalsIgnoreCase(comp)){
-                idx=i;
-            }
-        }
-        return idx;
     }
     public static void stretchItemToComponent(JComponent component, JComponent item) {
         int iWidth = (int) item.getPreferredSize().getWidth();
         int iHeight = (int) component.getPreferredSize().getHeight();
         item.setPreferredSize(new Dimension(iWidth, iHeight));
     }
-
     @Override
     public void clearGui() {
         super.clearGui();
