@@ -104,7 +104,7 @@ public class ExtendedCsvDataSetGui extends AbstractConfigGui {
         addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("Variable Name(s): ", JLabel.CENTER));
         addToPanel(csvDataSourcePanel, editConstraints, 1, row, variableNamesField = new JTextField(30));
         JButton viewFileButton;
-        addToPanel(csvDataSourcePanel, labelConstraints, 2, row, viewFileButton = new JButton("View File"));
+        addToPanel(csvDataSourcePanel, labelConstraints, 2, row, viewFileButton = new JButton("Open Editor"));
         row++;
 
         addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("Consider first line as Variable Name: ", JLabel.CENTER));
@@ -129,12 +129,12 @@ public class ExtendedCsvDataSetGui extends AbstractConfigGui {
 
         addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("When out of Values: ", JLabel.CENTER));
         addToPanel(csvDataSourcePanel, editConstraints, 1, row, ooValueCBox = new JComboBox<>(ooValues));
+        row++;
 
         fileEncodingCBox.setEditable(true);
         csvDatasourceConfigPanel.add(csvDataSourcePanel, BorderLayout.NORTH);
         add(csvDatasourceConfigPanel, BorderLayout.CENTER);
         csvDataSourceConfigBox.add(csvDatasourceConfigPanel);
-
 
         Box allocateBlockConfigBox = Box.createVerticalBox();
         JPanel allocateBlockConfigBoxPanel = new JPanel(new BorderLayout());
@@ -175,20 +175,19 @@ public class ExtendedCsvDataSetGui extends AbstractConfigGui {
         ooValueCBox.setEnabled(false);
         allocateConfigPanel.setEnabled(false);
         allocateBlockConfigBoxPanel.setEnabled(false);
-
         autoAllocateRButton.setEnabled(false);
         autoAllocateLabel.setEnabled(false);
         autoAllocateRButton.setSelected(false);
-
         allocateRButton.setEnabled(false);
         allocateLabel1.setEnabled(false);
         allocateLabel2.setEnabled(false);
         allocateRButton.setSelected(false);
-
         blockSizeField.setEnabled(false);
+
 
         rootPanel.add(csvDataSourceConfigBox, BorderLayout.NORTH);
         rootPanel.add(allocateBlockConfigBox, BorderLayout.CENTER);
+//        rootPanel.add(fileManipulatorConfigBox, BorderLayout.CENTER);
         add(rootPanel,BorderLayout.CENTER);
 
         selectRowCBox.addActionListener(e -> {
@@ -202,7 +201,7 @@ public class ExtendedCsvDataSetGui extends AbstractConfigGui {
                 autoAllocateRButton.setEnabled(true);
                 allocateRButton.setEnabled(true);
                 autoAllocateRButton.setSelected(true);
-                blockSizeField.setEnabled(true);
+                blockSizeField.setEnabled(false);
             }else{
                 ooValueCBox.setEnabled(false);
                 allocateConfigPanel.setEnabled(false);
