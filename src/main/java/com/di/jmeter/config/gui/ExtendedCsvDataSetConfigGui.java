@@ -31,9 +31,9 @@ import java.io.IOException;
 import java.util.Objects;
 
 
-public class ExtendedCsvDataSetGui extends AbstractConfigGui {
+public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
     private static final long serialVersionUID = 240L;
-    private static final Logger LOGGER = LoggerFactory.getLogger(ExtendedCsvDataSetGui.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ExtendedCsvDataSetConfigGui.class);
     private static final String DISPLAY_NAME="Extended CSV Data Set Config";
     private JTextField filenameField;
     private JComboBox<String> fileEncodingCBox;
@@ -62,7 +62,7 @@ public class ExtendedCsvDataSetGui extends AbstractConfigGui {
         return DISPLAY_NAME;
     }
 
-    public ExtendedCsvDataSetGui(){
+    public ExtendedCsvDataSetConfigGui(){
         init();
     }
 
@@ -232,7 +232,7 @@ public class ExtendedCsvDataSetGui extends AbstractConfigGui {
                 }
                 Desktop.getDesktop().edit(new File(filenameField.getText()));
             } catch (FileNotFoundException fne){
-                JOptionPane.showMessageDialog(new ExtendedCsvDataSetGui(),"Invalid File path.");
+                JOptionPane.showMessageDialog(new ExtendedCsvDataSetConfigGui(),"Invalid File path.");
             } catch (IOException ex) {
                 throw new RuntimeException(ex);
             }
@@ -249,6 +249,7 @@ public class ExtendedCsvDataSetGui extends AbstractConfigGui {
         selectRowCBox.setSelectedIndex(0);
         updateValueCBox.setSelectedIndex(0);
         ooValueCBox.setSelectedIndex(0);
+        blockSizeField.setText("");
     }
     @Override
     public TestElement createTestElement() {
