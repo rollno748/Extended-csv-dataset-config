@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to you under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.di.jmeter.utils;
 
 import java.io.*;
@@ -7,10 +24,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
+import groovy.transform.Synchronized;
 import org.apache.commons.io.input.BOMInputStream;
 import org.apache.jmeter.gui.JMeterFileFilter;
 import org.apache.jmeter.save.CSVSaveService;
 import org.apache.jmeter.util.JMeterUtils;
+import org.apache.jorphan.util.JMeterStopThreadException;
 import org.apache.jorphan.util.JOrphanUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,9 +68,7 @@ public class FileServerExtended {
     private static ThreadLocal<Integer> endPos =  new ThreadLocal<>();
     private static ThreadLocal<Integer> startPos =  new ThreadLocal<>();
     private static ThreadLocal<Integer> readPos =  new ThreadLocal<>();
-
     private final Map<String, FileEntry> files = new HashMap<>();
-
     private static final FileServerExtended server = new FileServerExtended();
 
     // volatile needed to ensure safe publication
@@ -61,16 +78,6 @@ public class FileServerExtended {
     private FileServerExtended() {
         base = new File(DEFAULT_BASE);
         log.info("Default base='{}'", DEFAULT_BASE);
-    }
-
-    public void calculateRowCount(String filename, boolean ignoreLine) {
-        int count = 0;
-        try (BufferedReader br = new BufferedReader(new FileReader(filename))) {
-            count = (int) br.lines().count();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        this.setRowCount(ignoreLine ? count-1 : count );
     }
 
     /**
@@ -315,6 +322,39 @@ public class FileServerExtended {
     public String readLine(String filename, boolean recycle) throws IOException {
         return readLine(filename, recycle, false);
     }
+
+    public synchronized String readSequential(String filename, boolean recycle, boolean ignoreFirstLine, String ooValue) throws IOException {
+        String line = readLine(filename, recycle, ignoreFirstLine);
+        if(line == null && ooValue.equalsIgnoreCase("abort thread")){
+            throw new JMeterStopThreadException("End of file detected for Extended CSV DataSet :"
+                    + filename + " configured with stopThread: " + ooValue);
+        }
+        return line;
+    }
+
+    public synchronized String readRandom(String filename, boolean recycle, boolean ignoreFirstLine) throws IOException {
+        String line = readIndexed(filename, recycle, ignoreFirstLine);
+        return line;
+    }
+
+    public synchronized String readUnique(String filename, boolean recycle, boolean ignoreFirstLine, String currPos, String startPos, String endPos) throws IOException {
+        String line = readIndexed(filename, recycle, ignoreFirstLine, currPos, startPos, endPos);
+//        if(line == null && ooValue.equalsIgnoreCase("abort thread")){
+//            throw new JMeterStopThreadException("End of file detected for Extended CSV DataSet :"
+//                    + filename + " configured with stopThread: " + ooValue);
+//        }
+        return line;
+    }
+
+    private String readIndexed(String filename, boolean recycle, boolean ignoreFirstLine) {
+        return null;
+    }
+
+    private String readIndexed(String filename, boolean recycle, boolean ignoreFirstLine, String currPos, String startPos, String endPos) {
+        return null;
+    }
+
+
     /**
      * Get the next line of the named file
      *
@@ -364,6 +404,11 @@ public class FileServerExtended {
         BufferedReader reader = getReader(alias, recycle, ignoreFirstLine);
         return CSVSaveService.csvReadFile(reader, delim);
     }
+    //Executed when Sequential option is selected and isQuoted data is set to true
+    public synchronized String[] getParsedLine(String alias, boolean recycle, boolean ignoreFirstLine, char delim, String ooValue) throws IOException {
+        BufferedReader reader = getReader(alias, recycle, ignoreFirstLine, ooValue);
+        return CSVSaveService.csvReadFile(reader, delim);
+    }
 
     /**
      * Return BufferedReader handling close if EOF reached and recycle is true
@@ -375,6 +420,42 @@ public class FileServerExtended {
      * @return {@link BufferedReader}
      */
     private BufferedReader getReader(String alias, boolean recycle, boolean ignoreFirstLine) throws IOException {
+        FileEntry fileEntry = files.get(alias);
+        if (fileEntry != null) {
+            BufferedReader reader;
+            if (fileEntry.inputOutputObject == null) {
+                reader = createBufferedReader(fileEntry);
+                fileEntry.inputOutputObject = reader;
+                if (ignoreFirstLine) {
+                    // read first line and forget
+                    reader.readLine(); //NOSONAR
+                }
+            } else if (!(fileEntry.inputOutputObject instanceof Reader)) {
+                throw new IOException("File " + alias + " already in use");
+            } else {
+                reader = (BufferedReader) fileEntry.inputOutputObject;
+                if (recycle) { // need to check if we are at EOF already
+                    reader.mark(1);
+                    int peek = reader.read();
+                    if (peek == -1) { // already at EOF
+                        reader.close();
+                        reader = createBufferedReader(fileEntry);
+                        fileEntry.inputOutputObject = reader;
+                        if (ignoreFirstLine) {
+                            // read first line and forget
+                            reader.readLine(); //NOSONAR
+                        }
+                    } else { // OK, we still have some data, restore it
+                        reader.reset();
+                    }
+                }
+            }
+            return reader;
+        } else {
+            throw new IOException("File never reserved: "+alias);
+        }
+    }
+    private BufferedReader getReader(String alias, boolean recycle, boolean ignoreFirstLine, String ooValue) throws IOException {
         FileEntry fileEntry = files.get(alias);
         if (fileEntry != null) {
             BufferedReader reader;
@@ -529,8 +610,14 @@ public class FileServerExtended {
         return files.get(path).file;
     }
 
-    public void reserveFile(String fileName, String fileEncoding, String alias, boolean ignoreFirstLine, String selectRow) {
-        //Dummy method
+    public void calculateRowCount(String filename, boolean ignoreLine) {
+        int count = 0;
+        try (BufferedReader br = new BufferedReader(new FileReader(filename))) {
+            count = (int) br.lines().count();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        this.setRowCount(ignoreLine ? count-1 : count );
     }
 
     private static class FileEntry{
@@ -588,6 +675,7 @@ public class FileServerExtended {
     public static void setRowCount(int count) {
         FileServerExtended.rowCount = count;
     }
+
     public static int getEndPos() {
         return endPos.get();
     }

@@ -19,6 +19,7 @@ package com.di.jmeter.config.gui;
 import com.di.jmeter.config.ExtendedCsvDataSetConfig;
 import com.di.jmeter.utils.BrowseAction;
 import org.apache.jmeter.config.gui.AbstractConfigGui;
+import org.apache.jmeter.gui.GuiPackage;
 import org.apache.jmeter.testelement.TestElement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -227,10 +228,16 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
 
         viewFileButton.addActionListener(e -> {
             try {
+                Desktop desktop = Desktop.getDesktop();
                 if(filenameField.getText().equals("") || filenameField.getText().isEmpty()){
                     throw new FileNotFoundException();
                 }
-                Desktop.getDesktop().edit(new File(filenameField.getText()));
+
+                if(desktop.isSupported(Desktop.Action.EDIT)){
+                    desktop.edit(new File(filenameField.getText()));
+                }else {
+                    desktop.open(new File(filenameField.getText()));
+                }
             } catch (FileNotFoundException fne){
                 JOptionPane.showMessageDialog(new ExtendedCsvDataSetConfigGui(),"Invalid File path.");
             } catch (IOException ex) {
@@ -245,7 +252,7 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
         variableNamesField.setText("");
         ignoreFirstLineCBox.setSelectedIndex(0);
         delimiterField.setText(",");
-        quotedDataCBox.setSelectedIndex(0);
+//        quotedDataCBox.setSelectedIndex(0);
         selectRowCBox.setSelectedIndex(0);
         updateValueCBox.setSelectedIndex(0);
         ooValueCBox.setSelectedIndex(0);
@@ -266,7 +273,7 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
             eCsvDataSetConfig.setFileEncoding(fileEncodingCBox.getItemAt(fileEncodingCBox.getSelectedIndex()));
             eCsvDataSetConfig.setVariableNames(variableNamesField.getText());
             eCsvDataSetConfig.setIgnoreFirstLine(ignoreFirstLineCBox.getItemAt(ignoreFirstLineCBox.getSelectedIndex()));
-            eCsvDataSetConfig.setDelimiter(delimiterField.getText());
+//            eCsvDataSetConfig.setDelimiter(delimiterField.getText());
             eCsvDataSetConfig.setQuotedData(quotedDataCBox.getItemAt(quotedDataCBox.getSelectedIndex()));
             eCsvDataSetConfig.setSelectRow(selectRowCBox.getItemAt(selectRowCBox.getSelectedIndex()));
             eCsvDataSetConfig.setUpdateValue(updateValueCBox.getItemAt(updateValueCBox.getSelectedIndex()));
