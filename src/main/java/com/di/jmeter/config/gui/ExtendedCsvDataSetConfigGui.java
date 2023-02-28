@@ -252,7 +252,7 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
         variableNamesField.setText("");
         ignoreFirstLineCBox.setSelectedIndex(0);
         delimiterField.setText(",");
-//        quotedDataCBox.setSelectedIndex(0);
+        quotedDataCBox.setSelectedIndex(0);
         selectRowCBox.setSelectedIndex(0);
         updateValueCBox.setSelectedIndex(0);
         ooValueCBox.setSelectedIndex(0);
@@ -274,7 +274,7 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
             eCsvDataSetConfig.setVariableNames(variableNamesField.getText());
             eCsvDataSetConfig.setIgnoreFirstLine(ignoreFirstLineCBox.getItemAt(ignoreFirstLineCBox.getSelectedIndex()));
 //            eCsvDataSetConfig.setDelimiter(delimiterField.getText());
-            eCsvDataSetConfig.setQuotedData(quotedDataCBox.getItemAt(quotedDataCBox.getSelectedIndex()));
+//            eCsvDataSetConfig.setQuotedData(quotedDataCBox.getItemAt(quotedDataCBox.getSelectedIndex()));
             eCsvDataSetConfig.setSelectRow(selectRowCBox.getItemAt(selectRowCBox.getSelectedIndex()));
             eCsvDataSetConfig.setUpdateValue(updateValueCBox.getItemAt(updateValueCBox.getSelectedIndex()));
             eCsvDataSetConfig.setOoValue(ooValueCBox.getItemAt(ooValueCBox.getSelectedIndex()));

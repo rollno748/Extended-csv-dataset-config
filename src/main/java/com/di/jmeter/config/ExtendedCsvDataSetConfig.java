@@ -66,7 +66,7 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
         final String delimiter = getDelimiter();
         JMeterVariables jMeterVariables = context.getVariables();
         boolean ignoreFirstLine = getPropertyAsBoolean(IGNORE_FIRST_LINE);
-        recycleFile = getPropertyAsString(OO_VALUE).equalsIgnoreCase("Continue Cyclic") ? true : false;
+//        recycleFile = getPropertyAsString(OO_VALUE).equalsIgnoreCase("Continue Cyclic") ? true : false;
         String[] lineValues = {};
         if (variables == null) {
             FileServerExtended.setReadPos(0);
@@ -77,9 +77,9 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
             case "sequential":
                 try{
                     if(isQuotedData()){
-                        lineValues = fileServer.getParsedLine(alias, recycleFile, ignoreFirstLine, delimiter.charAt(0), getOoValue());
+                        lineValues = fileServer.getParsedLine(alias, ignoreFirstLine, delimiter.charAt(0), getOoValue());//String alias, boolean recycle, boolean ignoreFirstLine, char delim
                     }else{
-                        String line = fileServer.readSequential(alias, recycleFile, ignoreFirstLine, getOoValue());
+                        String line = fileServer.readSequential(alias, ignoreFirstLine, getOoValue());
                         lineValues = JOrphanUtils.split(line, delimiter, false);
                     }
                 }catch(IOException e){
@@ -88,9 +88,30 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
                 LOGGER.debug("Sequential : {}", lineValues);
                 break;
             case "random":
+                try{
+                    if(isQuotedData()){
+                        lineValues = fileServer.getParsedLine(alias, ignoreFirstLine, delimiter.charAt(0), getOoValue());
+                    }else{
+                        String line = fileServer.readRandom(alias, ignoreFirstLine);
+                        lineValues = JOrphanUtils.split(line, delimiter, false);
+                    }
+                }catch(IOException e){
+                    LOGGER.error(e.toString());
+                }
                 LOGGER.debug("Random : {}", lineValues);
                 break;
             case "unique":
+                try{
+                    if(isQuotedData()){
+                        lineValues = fileServer.getParsedLine(alias, ignoreFirstLine, delimiter.charAt(0), getOoValue());
+                    }else{
+                        String line = fileServer.readUnique(alias, ignoreFirstLine, getOoValue(), 0, 1, 1);
+                        //String filename, boolean recycle, boolean ignoreFirstLine, String currPos, String startPos, String endPos
+                        lineValues = JOrphanUtils.split(line, delimiter, false);
+                    }
+                }catch(IOException e){
+                    LOGGER.error(e.toString());
+                }
                 LOGGER.debug("Unique : {}", lineValues);
                 break;
         }

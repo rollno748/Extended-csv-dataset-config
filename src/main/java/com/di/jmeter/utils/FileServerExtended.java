@@ -19,10 +19,13 @@ package com.di.jmeter.utils;
 
 import java.io.*;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Stream;
 
 import groovy.transform.Synchronized;
 import org.apache.commons.io.input.BOMInputStream;
@@ -33,6 +36,8 @@ import org.apache.jorphan.util.JMeterStopThreadException;
 import org.apache.jorphan.util.JOrphanUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.apache.sis.internal.jaxb.Context.LOGGER;
 
 /**
  * This class provides thread-safe access to files, and to
@@ -323,7 +328,9 @@ public class FileServerExtended {
         return readLine(filename, recycle, false);
     }
 
-    public synchronized String readSequential(String filename, boolean recycle, boolean ignoreFirstLine, String ooValue) throws IOException {
+    public synchronized String readSequential(String filename, boolean ignoreFirstLine, String ooValue) throws IOException {
+        boolean recycle = ooValue.equalsIgnoreCase("Continue Cyclic") ? true: false;
+
         String line = readLine(filename, recycle, ignoreFirstLine);
         if(line == null && ooValue.equalsIgnoreCase("abort thread")){
             throw new JMeterStopThreadException("End of file detected for Extended CSV DataSet :"
@@ -332,28 +339,69 @@ public class FileServerExtended {
         return line;
     }
 
-    public synchronized String readRandom(String filename, boolean recycle, boolean ignoreFirstLine) throws IOException {
-        String line = readIndexed(filename, recycle, ignoreFirstLine);
+    public synchronized String readRandom(String filename, boolean ignoreFirstLine) throws IOException {
+        Random rand = new Random();
+        String line = null;
+
+        int startPos = ignoreFirstLine ? 1 : 0;
+        int randPos = rand.nextInt((rowCount - startPos) + 1) + startPos;
+        line = readIndexed(filename, ignoreFirstLine, randPos);
         return line;
     }
 
-    public synchronized String readUnique(String filename, boolean recycle, boolean ignoreFirstLine, String currPos, String startPos, String endPos) throws IOException {
-        String line = readIndexed(filename, recycle, ignoreFirstLine, currPos, startPos, endPos);
-//        if(line == null && ooValue.equalsIgnoreCase("abort thread")){
-//            throw new JMeterStopThreadException("End of file detected for Extended CSV DataSet :"
-//                    + filename + " configured with stopThread: " + ooValue);
-//        }
+    public synchronized String readUnique(String filename, boolean ignoreFirstLine, String ooValue, int currPos, int startPos, int endPos) throws IOException {
+        String line = null;
+        boolean recycle = ooValue.equalsIgnoreCase("Continue Cyclic") ? true: false;
+//        int position = ignoreFirstLine ? pos + 1 : pos;
+        if(readPos.get() < getRowCount()){
+            line = readIndexed(filename, ignoreFirstLine, 1);
+        }
+
+        if(ooValue.equalsIgnoreCase("Continue Cyclic")){
+            if(currPos >= endPos){
+                readPos.set(startPos);
+            }else {
+                readPos.set(currPos + 1);
+            }
+        }else if(ooValue.equalsIgnoreCase("Abort Thread")){
+            if(currPos <= endPos){
+                readPos.set(currPos + 1);
+            }else{
+                throw new JMeterStopThreadException("End of Block :" + filename + " detected for Extended CSV DataSet:"
+                        + filename + " configured with stopThread: " + recycle);
+            }
+        }else{
+            if(currPos >= endPos){
+                readPos.set(currPos);
+            }else{
+                readPos.set(currPos + 1);
+            }
+        }
         return line;
     }
 
-    private String readIndexed(String filename, boolean recycle, boolean ignoreFirstLine) {
-        return null;
-    }
+    /**
+     * Get the next line of the named file
+     *
+     * @param filename the filename or alias that was used to reserve the file
+     * @param ignoreFirstLine - Ignore first line (false - will increment the position counter by 1)
+     * @param pos - line number to fetch from the file (starts from 0)
+     * @return String containing the next line in the file
+     * @throws IOException when reading of the file fails, or the file was not reserved properly
+     */
 
-    private String readIndexed(String filename, boolean recycle, boolean ignoreFirstLine, String currPos, String startPos, String endPos) {
-        return null;
+    private String readIndexed(String filename, boolean ignoreFirstLine, int pos) throws IOException {
+        String line = null;
+        FileEntry fileEntry = files.get(filename);
+        if(fileEntry != null){
+            try (Stream<String> lines = Files.lines(Paths.get(String.valueOf(fileEntry.file.toPath())))) {
+                line = lines.skip(pos).findFirst().get();
+            }catch(IOException e){
+                log.error(e.toString());
+            }
+        }
+        return line;
     }
-
 
     /**
      * Get the next line of the named file
@@ -394,18 +442,20 @@ public class FileServerExtended {
     /**
      *
      * @param alias the file name or alias
-     * @param recycle whether the file should be re-started on EOF
      * @param ignoreFirstLine whether the file contains a file header which will be ignored
      * @param delim the delimiter to use for parsing
+     * @param ooValue the EOF file strategy
      * @return the parsed line, will be empty if the file is at EOF
      * @throws IOException when reading of the aliased file fails, or the file was not reserved properly
      */
-    public synchronized String[] getParsedLine(String alias, boolean recycle, boolean ignoreFirstLine, char delim) throws IOException {
-        BufferedReader reader = getReader(alias, recycle, ignoreFirstLine);
-        return CSVSaveService.csvReadFile(reader, delim);
-    }
+//    public synchronized String[] getParsedLine(String alias, boolean ignoreFirstLine, char delim) throws IOException {
+//        boolean recycle = ooValue.equalsIgnoreCase("Continue Cyclic") ? true: false;
+//        BufferedReader reader = getReader(alias, recycle, ignoreFirstLine);
+//        return CSVSaveService.csvReadFile(reader, delim);
+//    }
     //Executed when Sequential option is selected and isQuoted data is set to true
-    public synchronized String[] getParsedLine(String alias, boolean recycle, boolean ignoreFirstLine, char delim, String ooValue) throws IOException {
+    public synchronized String[] getParsedLine(String alias, boolean ignoreFirstLine, char delim, String ooValue) throws IOException {
+        boolean recycle = ooValue.equalsIgnoreCase("Continue Cyclic") ? true: false;
         BufferedReader reader = getReader(alias, recycle, ignoreFirstLine, ooValue);
         return CSVSaveService.csvReadFile(reader, delim);
     }
