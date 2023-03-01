@@ -66,7 +66,6 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
         final String delimiter = getDelimiter();
         JMeterVariables jMeterVariables = context.getVariables();
         boolean ignoreFirstLine = getPropertyAsBoolean(IGNORE_FIRST_LINE);
-//        recycleFile = getPropertyAsString(OO_VALUE).equalsIgnoreCase("Continue Cyclic") ? true : false;
         String[] lineValues = {};
         if (variables == null) {
             FileServerExtended.setReadPos(0);
@@ -85,7 +84,7 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
                 }catch(IOException e){
                     LOGGER.error(e.toString());
                 }
-                LOGGER.debug("Sequential : {}", lineValues);
+                LOGGER.debug("Sequential line fetched : {}", lineValues);
                 break;
             case "random":
                 try{
@@ -98,24 +97,22 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
                 }catch(IOException e){
                     LOGGER.error(e.toString());
                 }
-                LOGGER.debug("Random : {}", lineValues);
+                LOGGER.debug("Random line fetched : {}", lineValues);
                 break;
             case "unique":
                 try{
                     if(isQuotedData()){
                         lineValues = fileServer.getParsedLine(alias, ignoreFirstLine, delimiter.charAt(0), getOoValue());
                     }else{
-                        String line = fileServer.readUnique(alias, ignoreFirstLine, getOoValue(), 0, 1, 1);
-                        //String filename, boolean recycle, boolean ignoreFirstLine, String currPos, String startPos, String endPos
+                        String line = fileServer.readUnique(alias, ignoreFirstLine, getOoValue(), FileServerExtended.getReadPos(), FileServerExtended.getStartPos(), FileServerExtended.getEndPos());
                         lineValues = JOrphanUtils.split(line, delimiter, false);
                     }
                 }catch(IOException e){
                     LOGGER.error(e.toString());
                 }
-                LOGGER.debug("Unique : {}", lineValues);
+                LOGGER.debug("Unique line fetched : {}", lineValues);
                 break;
         }
-
 
 //        Update Value --> Each Iteration, Once
         switch (getPropertyAsString(UPDATE_VALUE).toLowerCase()) {
@@ -187,6 +184,9 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
                     + " Or select auto allocate feature, which is currently set to : " + isAutoAllocate());
         }
         FileServerExtended.setReadPosition(threadName, blockSize);
+        if(FileServerExtended.getReadPos() == 0){
+            FileServerExtended.setReadPos(FileServerExtended.getStartPos());
+        }
     }
 
     private void setAlias(final JMeterContext context, String alias) {
@@ -286,7 +286,7 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
     public boolean isQuotedData() {
         return getPropertyAsBoolean(QUOTED_DATA);
     }
-    public void setQuotedData(String quotedData) {
+    public void setQuotedData(String quotedData, Boolean selectedItem) {
         setProperty(QUOTED_DATA, quotedData);
     }
     public String getSelectRow() {
@@ -338,61 +338,6 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
         this.recycleFile = recycleFile;
     }
     public String printAllProperties() {
-        return String.format("Filename: {}\n,FileEncoding: {}\n, VariableName: {}\n," +
-                        "IgnoreFirstLine: {}\n, Delimiter: {}\n, IsQuotedData: {}\n, SelectRow: {}\n, UpdateValue: {}\n, OOValue: {}\n," +
-                        "AutoAllocate: {}\n, Allocate: {}\n, BlockSize: {}\n",getFilename(),getFileEncoding(),getVariableNames(),isIgnoreFirstLine(),
-                getDelimiter(),isQuotedData(),getSelectRow(),getUpdateValue(),getOoValue(),isAllocate(),isAutoAllocate(),getBlockSize());
+        return String.format("Filename: %s\n,FileEncoding: %s\n, VariableName: %s\n, IgnoreFirstLine: %s\n, Delimiter: %s\n, IsQuotedData: %s\n, SelectRow: %s\n, UpdateValue: %s\n, OOValue: %s\n, AutoAllocate: %s\n, Allocate: %s\n, BlockSize: %s\n",getFilename(),getFileEncoding(),getVariableNames(),isIgnoreFirstLine(), getDelimiter(),isQuotedData(),getSelectRow(),getUpdateValue(),getOoValue(),isAllocate(),isAutoAllocate(),getBlockSize());
     }
 }
-
-/*
-
-        switch (getPropertyAsString(SELECT_ROW).toLowerCase()) { //        Select Row -> Sequential, Random, Unique
-                case "sequential":
-                try{
-                if(isQuotedData()){
-                lineValues = fileServer.getParsedLine(alias, recycleFile, ignoreFirstLine, delimiter.charAt(0));
-                }else{
-                String line = fileServer.readLine(alias, recycleFile, ignoreFirstLine);
-                lineValues = JOrphanUtils.split(line, delimiter, false);
-                }
-                }catch (IOException e){
-                LOGGER.error(e.toString());
-                }
-                LOGGER.info("Sequential : {}" );
-                break;
-
-                case "random":
-                try{
-                if(isQuotedData()) {
-                lineValues = fileServer.getParsedLine(alias, recycleFile, ignoreFirstLine, delimiter.charAt(0));
-                } else{
-                String line = fileServer.readLine(alias, recycleFile, ignoreFirstLine);
-                lineValues = JOrphanUtils.split(line, delimiter, false);
-                }
-                }catch (IOException e){
-                LOGGER.error(e.toString());
-                }
-                LOGGER.info("Random : {} " );
-                break;
-
-                case "unique":
-                try{
-                if(isQuotedData()) {
-                lineValues = fileServer.getParsedLine(alias, recycleFile, ignoreFirstLine, delimiter.charAt(0));
-                } else{
-                String line = fileServer.readLine(alias, recycleFile, ignoreFirstLine);
-                lineValues = JOrphanUtils.split(line, delimiter, false);
-                }
-                }catch (IOException e){
-                LOGGER.error(e.toString());
-                }
-                LOGGER.info("Unique : {} ");
-                break;
-
-default:
-        LOGGER.debug("Invalid selection on Select row");
-        throw new JMeterStopThreadException("Invalid selection :" + getFilename() + " detected for Extended CSV DataSet:"
-        + getName() + " configured to Select Row Parameter :" + getSelectRow());
-        }
-        */

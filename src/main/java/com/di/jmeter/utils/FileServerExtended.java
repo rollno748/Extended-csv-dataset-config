@@ -341,20 +341,15 @@ public class FileServerExtended {
 
     public synchronized String readRandom(String filename, boolean ignoreFirstLine) throws IOException {
         Random rand = new Random();
-        String line = null;
-
         int startPos = ignoreFirstLine ? 1 : 0;
         int randPos = rand.nextInt((rowCount - startPos) + 1) + startPos;
-        line = readIndexed(filename, ignoreFirstLine, randPos);
-        return line;
+        return readIndexed(filename, randPos);
     }
 
     public synchronized String readUnique(String filename, boolean ignoreFirstLine, String ooValue, int currPos, int startPos, int endPos) throws IOException {
-        String line = null;
-        boolean recycle = ooValue.equalsIgnoreCase("Continue Cyclic") ? true: false;
-//        int position = ignoreFirstLine ? pos + 1 : pos;
-        if(readPos.get() < getRowCount()){
-            line = readIndexed(filename, ignoreFirstLine, 1);
+        String line = null; //        boolean recycle = ooValue.equalsIgnoreCase("Continue Cyclic") ? true: false;
+        if(currPos < getRowCount()){
+            line = readIndexed(filename, currPos);
         }
 
         if(ooValue.equalsIgnoreCase("Continue Cyclic")){
@@ -368,7 +363,7 @@ public class FileServerExtended {
                 readPos.set(currPos + 1);
             }else{
                 throw new JMeterStopThreadException("End of Block :" + filename + " detected for Extended CSV DataSet:"
-                        + filename + " configured with stopThread: " + recycle);
+                        + filename + " configured with stopThread: " + ooValue);
             }
         }else{
             if(currPos >= endPos){
@@ -384,13 +379,12 @@ public class FileServerExtended {
      * Get the next line of the named file
      *
      * @param filename the filename or alias that was used to reserve the file
-     * @param ignoreFirstLine - Ignore first line (false - will increment the position counter by 1)
      * @param pos - line number to fetch from the file (starts from 0)
      * @return String containing the next line in the file
      * @throws IOException when reading of the file fails, or the file was not reserved properly
      */
 
-    private String readIndexed(String filename, boolean ignoreFirstLine, int pos) throws IOException {
+    private String readIndexed(String filename, int pos) throws IOException {
         String line = null;
         FileEntry fileEntry = files.get(filename);
         if(fileEntry != null){

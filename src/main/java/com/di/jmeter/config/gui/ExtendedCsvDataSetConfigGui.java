@@ -19,7 +19,6 @@ package com.di.jmeter.config.gui;
 import com.di.jmeter.config.ExtendedCsvDataSetConfig;
 import com.di.jmeter.utils.BrowseAction;
 import org.apache.jmeter.config.gui.AbstractConfigGui;
-import org.apache.jmeter.gui.GuiPackage;
 import org.apache.jmeter.testelement.TestElement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +30,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Objects;
 
+import static com.di.jmeter.config.ExtendedCsvDataSetConfig.IGNORE_FIRST_LINE;
+import static com.di.jmeter.config.ExtendedCsvDataSetConfig.QUOTED_DATA;
+
 
 public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
     private static final long serialVersionUID = 240L;
@@ -39,9 +41,9 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
     private JTextField filenameField;
     private JComboBox<String> fileEncodingCBox;
     private JTextField variableNamesField;
-    private JComboBox<String> ignoreFirstLineCBox;
+    private JComboBox<Boolean> ignoreFirstLineCBox;
     private JTextField delimiterField;
-    private JComboBox<String> quotedDataCBox;
+    private JComboBox<Boolean> quotedDataCBox;
     private JComboBox<String> selectRowCBox;
     private JComboBox<String> updateValueCBox;
     private JComboBox<String> ooValueCBox;
@@ -52,7 +54,6 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
     private final String[] selectRowValues = {"Sequential", "Random", "Unique"};
     private final String[] updateValues = {"Each Iteration", "Once"};
     private final String[] ooValues = {"Abort Thread", "Continue Cyclic", "Continue with Last Value"};
-    private final String[] boolValues = {"True", "False"};
 
     @Override
     public String getLabelResource() {
@@ -65,6 +66,7 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
 
     public ExtendedCsvDataSetConfigGui(){
         init();
+        initGuiValues();
     }
 
     private void init() {
@@ -109,7 +111,7 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
         row++;
 
         addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("Consider first line as Variable Name: ", JLabel.CENTER));
-        addToPanel(csvDataSourcePanel, editConstraints, 1, row, ignoreFirstLineCBox = new JComboBox<>(boolValues));
+        addToPanel(csvDataSourcePanel, editConstraints, 1, row, ignoreFirstLineCBox = new JComboBox<>(new Boolean[] { true, false }));
         row++;
 
         addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("Delimiter: ", JLabel.CENTER));
@@ -117,7 +119,7 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
         row++;
 
         addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("Allow Quoted Data: ", JLabel.CENTER));
-        addToPanel(csvDataSourcePanel, editConstraints, 1, row, quotedDataCBox = new JComboBox<>(boolValues));
+        addToPanel(csvDataSourcePanel, editConstraints, 1, row, quotedDataCBox = new JComboBox<>(new Boolean[] { true, false }));
         row++;
 
         addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("Select Row: ", JLabel.CENTER));
@@ -130,7 +132,7 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
 
         addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("When out of Values: ", JLabel.CENTER));
         addToPanel(csvDataSourcePanel, editConstraints, 1, row, ooValueCBox = new JComboBox<>(ooValues));
-        row++;
+//        row++;
 
         fileEncodingCBox.setEditable(true);
         csvDatasourceConfigPanel.add(csvDataSourcePanel, BorderLayout.NORTH);
@@ -185,14 +187,21 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
         allocateRButton.setSelected(false);
         blockSizeField.setEnabled(false);
 
-
         rootPanel.add(csvDataSourceConfigBox, BorderLayout.NORTH);
         rootPanel.add(allocateBlockConfigBox, BorderLayout.CENTER);
 //        rootPanel.add(fileManipulatorConfigBox, BorderLayout.CENTER);
         add(rootPanel,BorderLayout.CENTER);
 
+        ignoreFirstLineCBox.addActionListener(e->{
+            LOGGER.debug("Ignore First line in csv is set as : {}", ignoreFirstLineCBox.getSelectedItem());
+        });
+
+        quotedDataCBox.addActionListener(e->{
+            LOGGER.debug("Quoted data in csv is set as : {}", quotedDataCBox.getSelectedItem());
+        });
+
         selectRowCBox.addActionListener(e -> {
-            LOGGER.info("Selection is {}", selectRowCBox);
+            LOGGER.debug("Selection is : {}", selectRowCBox.getSelectedItem());
             if(Objects.equals(selectRowCBox.getSelectedItem(), "Unique")){
                 ooValueCBox.setEnabled(true);
                 allocateConfigPanel.setEnabled(true);
@@ -202,7 +211,6 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
                 autoAllocateRButton.setEnabled(true);
                 allocateRButton.setEnabled(true);
                 autoAllocateRButton.setSelected(true);
-                blockSizeField.setEnabled(false);
             }else{
                 ooValueCBox.setEnabled(false);
                 allocateConfigPanel.setEnabled(false);
@@ -244,47 +252,48 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
                 throw new RuntimeException(ex);
             }
         });
-        initGuiValues();
     }
+
     private void initGuiValues() {
         filenameField.setText("");
         fileEncodingCBox.setSelectedIndex(0);
         variableNamesField.setText("");
         ignoreFirstLineCBox.setSelectedIndex(0);
         delimiterField.setText(",");
-        quotedDataCBox.setSelectedIndex(0);
+        quotedDataCBox.setSelectedIndex(1);
         selectRowCBox.setSelectedIndex(0);
         updateValueCBox.setSelectedIndex(0);
         ooValueCBox.setSelectedIndex(0);
         blockSizeField.setText("");
     }
+
     @Override
     public TestElement createTestElement() {
         ExtendedCsvDataSetConfig element = new ExtendedCsvDataSetConfig();
         modifyTestElement(element);
         return element;
     }
+
     @Override
     public void modifyTestElement(TestElement element) {
         configureTestElement(element);
         if(element instanceof ExtendedCsvDataSetConfig){
             ExtendedCsvDataSetConfig eCsvDataSetConfig = (ExtendedCsvDataSetConfig) element;
-            eCsvDataSetConfig.setFilename(filenameField.getText());
-            eCsvDataSetConfig.setFileEncoding(fileEncodingCBox.getItemAt(fileEncodingCBox.getSelectedIndex()));
-            eCsvDataSetConfig.setVariableNames(variableNamesField.getText());
-            eCsvDataSetConfig.setIgnoreFirstLine(ignoreFirstLineCBox.getItemAt(ignoreFirstLineCBox.getSelectedIndex()));
-//            eCsvDataSetConfig.setDelimiter(delimiterField.getText());
-//            eCsvDataSetConfig.setQuotedData(quotedDataCBox.getItemAt(quotedDataCBox.getSelectedIndex()));
-            eCsvDataSetConfig.setSelectRow(selectRowCBox.getItemAt(selectRowCBox.getSelectedIndex()));
-            eCsvDataSetConfig.setUpdateValue(updateValueCBox.getItemAt(updateValueCBox.getSelectedIndex()));
-            eCsvDataSetConfig.setOoValue(ooValueCBox.getItemAt(ooValueCBox.getSelectedIndex()));
-            eCsvDataSetConfig.setAutoAllocate(autoAllocateRButton.isSelected());
-            eCsvDataSetConfig.setAllocate(allocateRButton.isSelected());
-            eCsvDataSetConfig.setBlockSize(blockSizeField.getText());
+            eCsvDataSetConfig.setFilename(this.filenameField.getText());
+            eCsvDataSetConfig.setFileEncoding(this.fileEncodingCBox.getItemAt(fileEncodingCBox.getSelectedIndex()));
+            eCsvDataSetConfig.setVariableNames(this.variableNamesField.getText());
+            eCsvDataSetConfig.setProperty(IGNORE_FIRST_LINE, (Boolean) ignoreFirstLineCBox.getSelectedItem());
+            eCsvDataSetConfig.setQuotedData(QUOTED_DATA, (Boolean) quotedDataCBox.getSelectedItem());
+            eCsvDataSetConfig.setSelectRow(this.selectRowCBox.getItemAt(selectRowCBox.getSelectedIndex()));
+            eCsvDataSetConfig.setUpdateValue(this.updateValueCBox.getItemAt(updateValueCBox.getSelectedIndex()));
+            eCsvDataSetConfig.setOoValue(this.ooValueCBox.getItemAt(ooValueCBox.getSelectedIndex()));
+            eCsvDataSetConfig.setAutoAllocate(this.autoAllocateRButton.isSelected());
+            eCsvDataSetConfig.setAllocate(this.allocateRButton.isSelected());
+            eCsvDataSetConfig.setBlockSize(this.blockSizeField.getText());
             LOGGER.debug("{}", eCsvDataSetConfig.printAllProperties());
         }
-
     }
+
     @Override
     public void configure(TestElement element) {
         super.configure(element);
@@ -293,9 +302,9 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
             filenameField.setText(config.getFilename());
             fileEncodingCBox.setSelectedItem(config.getFileEncoding());
             variableNamesField.setText(config.getVariableNames());
-            ignoreFirstLineCBox.setSelectedItem(config.isIgnoreFirstLine());
+            ignoreFirstLineCBox.setSelectedItem(config.getPropertyAsBoolean(IGNORE_FIRST_LINE, false));
             delimiterField.setText(config.getDelimiter());
-            quotedDataCBox.setSelectedItem(config.isQuotedData());
+            quotedDataCBox.setSelectedItem(config.getPropertyAsBoolean(QUOTED_DATA,false));
             selectRowCBox.setSelectedItem(config.getSelectRow());
             updateValueCBox.setSelectedItem(config.getUpdateValue());
             ooValueCBox.setSelectedItem(config.getOoValue());
@@ -304,6 +313,13 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
             blockSizeField.setText(config.getBlockSize());
         }
     }
+
+    @Override
+    public void clearGui() {
+        super.clearGui();
+        initGuiValues();
+    }
+
     private void addToPanel(JPanel panel, GridBagConstraints constraints, int col, int row, JComponent component) {
         constraints.gridx = col;
         constraints.gridy = row;
@@ -313,10 +329,5 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
         int iWidth = (int) item.getPreferredSize().getWidth();
         int iHeight = (int) component.getPreferredSize().getHeight();
         item.setPreferredSize(new Dimension(iWidth, iHeight));
-    }
-    @Override
-    public void clearGui() {
-        super.clearGui();
-        initGuiValues();
     }
 }
