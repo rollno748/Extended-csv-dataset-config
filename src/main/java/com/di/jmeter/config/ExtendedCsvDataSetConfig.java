@@ -66,6 +66,7 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
         final String delimiter = getDelimiter();
         JMeterVariables jMeterVariables = context.getVariables();
         boolean ignoreFirstLine = getPropertyAsBoolean(IGNORE_FIRST_LINE);
+        boolean recycle = getOoValue().equalsIgnoreCase("Continue Cyclic") ? true : false;
         String[] lineValues = {};
         if (variables == null) {
             FileServerExtended.setReadPos(0);
@@ -76,7 +77,7 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
             case "sequential":
                 try{
                     if(isQuotedData()){
-                        lineValues = fileServer.getParsedLine(alias, ignoreFirstLine, delimiter.charAt(0), getOoValue());//String alias, boolean recycle, boolean ignoreFirstLine, char delim
+                        lineValues = fileServer.getParsedLine(alias, recycle, firstLineIsNames || ignoreFirstLine, delimiter.charAt(0));
                     }else{
                         String line = fileServer.readSequential(alias, ignoreFirstLine, getOoValue());
                         lineValues = JOrphanUtils.split(line, delimiter, false);
@@ -89,7 +90,7 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
             case "random":
                 try{
                     if(isQuotedData()){
-                        lineValues = fileServer.getParsedLine(alias, ignoreFirstLine, delimiter.charAt(0), getOoValue());
+                        lineValues = fileServer.getParsedLine(alias, recycle, firstLineIsNames || ignoreFirstLine, delimiter.charAt(0));
                     }else{
                         String line = fileServer.readRandom(alias, ignoreFirstLine);
                         lineValues = JOrphanUtils.split(line, delimiter, false);
@@ -102,7 +103,7 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
             case "unique":
                 try{
                     if(isQuotedData()){
-                        lineValues = fileServer.getParsedLine(alias, ignoreFirstLine, delimiter.charAt(0), getOoValue());
+                        lineValues = fileServer.getParsedLine(alias, recycle, firstLineIsNames || ignoreFirstLine, delimiter.charAt(0));
                     }else{
                         String line = fileServer.readUnique(alias, ignoreFirstLine, getOoValue(), FileServerExtended.getReadPos(), FileServerExtended.getStartPos(), FileServerExtended.getEndPos());
                         lineValues = JOrphanUtils.split(line, delimiter, false);
@@ -147,13 +148,14 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
         setAlias(context, fileName);
         final String varNames = getVariableNames();
         if(getOoValue() != null && getOoValue().equalsIgnoreCase("Continue Cyclic")){
-            setRecycleFile(true);
+            this.setRecycleFile(true);
         }
         if (StringUtils.isEmpty(varNames)) {
             String header = fileServer.reserveFile(fileName, getFileEncoding(), alias, true);
             try {
                 variables = CSVSaveService.csvSplitString(header, delimiter.charAt(0));
                 firstLineIsNames = true;
+                ignoreFirstLine = true;
                 trimVarNames(variables);
             } catch (IOException e) {
                 throw new IllegalArgumentException("Could not split CSV header line from file:" + fileName, e);
@@ -162,8 +164,8 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
             fileServer.reserveFile(fileName, getFileEncoding(), alias, ignoreFirstLine);
             variables = JOrphanUtils.split(varNames, ",");
         }
-        if(getSelectRow().equalsIgnoreCase("unique")){
-            fileServer.calculateRowCount(getFilename(), getVariableNames().isEmpty() && isIgnoreFirstLine());
+        fileServer.calculateRowCount(getFilename(), getVariableNames().isEmpty() && isIgnoreFirstLine());
+        if(getSelectRow().equalsIgnoreCase("Unique")){
             this.initBlockFeatures(fileServer, alias, context);
         }
         trimVarNames(JOrphanUtils.split(varNames, ","));
@@ -177,12 +179,12 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
             blockSize = FileServerExtended.getRowCount() / JMeterContextService.getTotalThreads();
         }else{
             blockSize = Integer.parseInt(getBlockSize());
+            if(blockSize < 1){
+                throw new JMeterStopThreadException("Block Size Allocation Exception :" + getBlockSize() + " Please Ensure the block size is greater than 0"
+                        + " Or select auto allocate feature, which is currently set to : " + isAutoAllocate());
+            }
         }
         //Set Start and end position to block
-        if(blockSize < 1){
-            throw new JMeterStopThreadException("Block Size Allocation Exception :" + getBlockSize() + " Please Ensure the block size is greater than 0"
-                    + " Or select auto allocate feature, which is currently set to : " + isAutoAllocate());
-        }
         FileServerExtended.setReadPosition(threadName, blockSize);
         if(FileServerExtended.getReadPos() == 0){
             FileServerExtended.setReadPos(FileServerExtended.getStartPos());
@@ -190,7 +192,7 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
     }
 
     private void setAlias(final JMeterContext context, String alias) {
-        if(getSelectRow().equalsIgnoreCase("sequential")){
+        if(getSelectRow().equalsIgnoreCase("Sequential")){
             this.alias = alias + "@" + System.identityHashCode(context.getThread());
         }else{
             switch (getShareMode()) {
