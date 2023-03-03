@@ -34,7 +34,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Arrays;
 
 public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThreadClone, LoopIterationListener, TestStateListener, ThreadListener {
     private static final long serialVersionUID = 767792680142202807L;
@@ -186,7 +185,7 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
             }
         }
         //Set Start and end position to block
-        FileServerExtended.setReadPosition(threadName, blockSize);
+        FileServerExtended.setReadPosition(threadName, blockSize, ignoreFirstLine);
         if(FileServerExtended.getReadPos() == 0){
             FileServerExtended.setReadPos(FileServerExtended.getStartPos());
         }

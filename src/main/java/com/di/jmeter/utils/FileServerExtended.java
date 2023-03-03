@@ -591,11 +591,12 @@ public class FileServerExtended {
         this.scriptName = scriptName;
     }
 
-
-    public static void setReadPosition(String threadName, int blockSize) {
-        setEndPos((Integer.parseInt(threadName.substring(threadName.lastIndexOf('-') + 1)) * blockSize) - 1);
-        setStartPos((getEndPos() - blockSize) + 1);
+    public static void setReadPosition(String threadName, int blockSize, boolean ignoreFirstLine) {
+        int head = (ignoreFirstLine) ? 1 : 0;
+        setEndPos((Integer.parseInt(threadName.substring(threadName.lastIndexOf('-') + 1)) * blockSize) - 1 + head);
+        setStartPos((getEndPos() - blockSize) + head);
     }
+
     public synchronized String readSequential(String filename, boolean ignoreFirstLine, String ooValue) throws IOException {
         boolean recycle = ooValue.equalsIgnoreCase("Continue Cyclic") ? true: false;
 

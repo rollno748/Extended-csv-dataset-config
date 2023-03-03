@@ -53,12 +53,13 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
     private String[] fileEncodingValues = {"UTF-8", "UTF-16", "ISO-8859-15", "US-ASCII"};
     private final String[] selectRowValues = {"Sequential", "Random", "Unique"};
     private final String[] updateValues = {"Each Iteration", "Once"};
-    private final String[] ooValues = {"Abort Thread", "Continue Cyclic", "Continue with Last Value"};
+    private final String[] ooValues = {"Continue Cyclic", "Continue with Last Value", "Abort Thread"};
 
     @Override
     public String getLabelResource() {
         return DISPLAY_NAME;
     }
+    
     @Override
     public String getStaticLabel() {
         return DISPLAY_NAME;
