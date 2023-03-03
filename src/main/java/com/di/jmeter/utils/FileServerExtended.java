@@ -350,7 +350,6 @@ public class FileServerExtended {
                 }
                 line = reader.readLine();
             }
-            log.debug("Read:{}", line);
             return line;
         }
         throw new IOException("File never reserved: "+filename);
@@ -616,7 +615,7 @@ public class FileServerExtended {
     }
 
     public synchronized String readUnique(String filename, boolean ignoreFirstLine, String ooValue, int currPos, int startPos, int endPos) throws IOException {
-        String line = null; //        boolean recycle = ooValue.equalsIgnoreCase("Continue Cyclic") ? true: false;
+        String line = null;
         if(currPos < getRowCount()){
             line = readIndexed(filename, currPos);
         }

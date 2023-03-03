@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThreadClone, LoopIterationListener, TestStateListener, ThreadListener {
     private static final long serialVersionUID = 767792680142202807L;
@@ -58,34 +59,35 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
     private boolean firstLineIsNames = false;
     private boolean updateOnceFlag = true;
 
-
     @Override
     public void iterationStart(LoopIterationEvent loopIterationEvent) {
         FileServerExtended fileServer = FileServerExtended.getFileServer();
         final JMeterContext context = getThreadContext();
-        final String delimiter = getDelimiter();
-        JMeterVariables jMeterVariables = context.getVariables();
-        boolean ignoreFirstLine = getPropertyAsBoolean(IGNORE_FIRST_LINE);
-        boolean recycle = getOoValue().equalsIgnoreCase("Continue Cyclic") ? true : false;
+        final String delimiter = getDelimiter();  // delimiter -> ',' (comma) will be default
         String[] lineValues = {};
+        final boolean ignoreFirstLine = getPropertyAsBoolean(IGNORE_FIRST_LINE);
+        final boolean recycle = getOoValue().equalsIgnoreCase("Continue Cyclic") ? true : false;
         if (variables == null) {
             FileServerExtended.setReadPos(0);
             initVars(fileServer, context, delimiter);
         }
 
+        JMeterVariables jMeterVariables = context.getVariables();
+        // Select Row -> Sequential, Random, Unique
         switch(getSelectRow().toLowerCase()){
             case "sequential":
                 try{
                     if(isQuotedData()){
                         lineValues = fileServer.getParsedLine(alias, recycle, firstLineIsNames || ignoreFirstLine, delimiter.charAt(0));
                     }else{
-                        String line = fileServer.readSequential(alias, ignoreFirstLine, getOoValue());
+                        String line = fileServer.readLine(alias, recycle, ignoreFirstLine);
+                        LOGGER.debug("Sequential line fetched : {}", line);
                         lineValues = JOrphanUtils.split(line, delimiter, false);
                     }
                 }catch(IOException e){
                     LOGGER.error(e.toString());
                 }
-                LOGGER.debug("Sequential line fetched : {}", lineValues);
+
                 break;
             case "random":
                 try{
@@ -93,12 +95,12 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
                         lineValues = fileServer.getParsedLine(alias, recycle, firstLineIsNames || ignoreFirstLine, delimiter.charAt(0));
                     }else{
                         String line = fileServer.readRandom(alias, ignoreFirstLine);
+                        LOGGER.debug("Random line fetched : {}", line);
                         lineValues = JOrphanUtils.split(line, delimiter, false);
                     }
                 }catch(IOException e){
                     LOGGER.error(e.toString());
                 }
-                LOGGER.debug("Random line fetched : {}", lineValues);
                 break;
             case "unique":
                 try{
@@ -106,19 +108,18 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
                         lineValues = fileServer.getParsedLine(alias, recycle, firstLineIsNames || ignoreFirstLine, delimiter.charAt(0));
                     }else{
                         String line = fileServer.readUnique(alias, ignoreFirstLine, getOoValue(), FileServerExtended.getReadPos(), FileServerExtended.getStartPos(), FileServerExtended.getEndPos());
+                        LOGGER.debug("Unique line fetched : {}", line);
                         lineValues = JOrphanUtils.split(line, delimiter, false);
                     }
                 }catch(IOException e){
                     LOGGER.error(e.toString());
                 }
-                LOGGER.debug("Unique line fetched : {}", lineValues);
                 break;
         }
 
 //        Update Value --> Each Iteration, Once
         switch (getPropertyAsString(UPDATE_VALUE).toLowerCase()) {
             case "each iteration":
-                LOGGER.info("Each Iteration");
                 if(lineValues.length > 0){
                     for (int a = 0; a < variables.length && a < lineValues.length; a++) {
                         jMeterVariables.put(variables[a], lineValues[a]);
@@ -127,7 +128,6 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
                 break;
 
             case "once":
-                LOGGER.info("Once");
                 if(updateOnceFlag){
                     for (int a = 0; a < variables.length && a < lineValues.length; a++) {
                         jMeterVariables.put(variables[a], lineValues[a]);
@@ -137,7 +137,7 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
                 break;
 
             default:
-                LOGGER.debug("Invalid selection on Update Value");
+                LOGGER.error("Invalid selection on Update Value");
                 throw new JMeterStopThreadException("Invalid selection :" + getFilename() + " detected for Extended CSV DataSet:"
                         + getName() + " configured to Select Row Parameter :" + getUpdateValue());
         }
@@ -145,8 +145,9 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
 
     private void initVars(FileServerExtended fileServer, JMeterContext context, String delimiter) {
         String fileName = getFilename().trim();
-        setAlias(context, fileName);
         final String varNames = getVariableNames();
+        setAlias(context, fileName);
+
         if(getOoValue() != null && getOoValue().equalsIgnoreCase("Continue Cyclic")){
             this.setRecycleFile(true);
         }
@@ -168,7 +169,7 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
         if(getSelectRow().equalsIgnoreCase("Unique")){
             this.initBlockFeatures(fileServer, alias, context);
         }
-        trimVarNames(JOrphanUtils.split(varNames, ","));
+        trimVarNames(variables);
     }
 
     private void initBlockFeatures(FileServerExtended fileServer, String alias, JMeterContext context) {

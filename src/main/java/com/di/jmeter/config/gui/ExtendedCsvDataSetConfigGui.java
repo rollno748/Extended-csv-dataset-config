@@ -243,8 +243,10 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
 
                 if(desktop.isSupported(Desktop.Action.EDIT)){
                     desktop.edit(new File(filenameField.getText()));
-                }else {
+                }else if(desktop.isSupported(Desktop.Action.OPEN)){
                     desktop.open(new File(filenameField.getText()));
+                }else{
+                    JOptionPane.showMessageDialog(new ExtendedCsvDataSetConfigGui(), "Unable to get the default editor");
                 }
             } catch (FileNotFoundException fne){
                 JOptionPane.showMessageDialog(new ExtendedCsvDataSetConfigGui(),"Invalid File path.");
