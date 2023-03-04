@@ -64,7 +64,7 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
         final JMeterContext context = getThreadContext();
         final String delimiter = getDelimiter();  // delimiter -> ',' (comma) will be default
         String[] lineValues = {};
-        final boolean ignoreFirstLine = getPropertyAsBoolean(IGNORE_FIRST_LINE);
+        this.ignoreFirstLine = getPropertyAsBoolean(IGNORE_FIRST_LINE);
         final boolean recycle = getOoValue().equalsIgnoreCase("Continue Cyclic") ? true : false;
         if (variables == null) {
             FileServerExtended.setReadPos(0);

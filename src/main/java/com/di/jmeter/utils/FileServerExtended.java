@@ -532,16 +532,6 @@ public class FileServerExtended {
         return files.get(path).file;
     }
 
-    public void calculateRowCount(String filename, boolean ignoreLine) {
-        int count = 0;
-        try (BufferedReader br = new BufferedReader(new FileReader(filename))) {
-            count = (int) br.lines().count();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        this.setRowCount(ignoreLine ? count-1 : count );
-    }
-
     private static class FileEntry{
         private String headerLine;
         private Throwable exception;
@@ -591,10 +581,26 @@ public class FileServerExtended {
         this.scriptName = scriptName;
     }
 
+    public void calculateRowCount(String filename, boolean ignoreLine) {
+        int count = 0;
+        try (BufferedReader br = new BufferedReader(new FileReader(filename))) {
+            count = (int) br.lines().count();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        this.setRowCount(ignoreLine ? count-1 : count );
+    }
+
     public static void setReadPosition(String threadName, int blockSize, boolean ignoreFirstLine) {
-        int head = (ignoreFirstLine) ? 1 : 0;
-        setEndPos((Integer.parseInt(threadName.substring(threadName.lastIndexOf('-') + 1)) * blockSize) - 1 + head);
-        setStartPos((getEndPos() - blockSize) + head);
+        int head = ignoreFirstLine ? 1 : 0;
+        int endPos = (Integer.parseInt(threadName.substring(threadName.lastIndexOf('-') + 1)) * blockSize) - 1;
+        //setEndPos((Integer.parseInt(threadName.substring(threadName.lastIndexOf('-') + 1)) * blockSize) - 1);
+        setEndPos(endPos);
+        setStartPos((getEndPos() - blockSize) + 1);
+        if(ignoreFirstLine){
+            setEndPos(getEndPos() + head);
+            setStartPos(getStartPos() + head);
+        }
     }
 
     public synchronized String readSequential(String filename, boolean ignoreFirstLine, String ooValue) throws IOException {
@@ -611,7 +617,7 @@ public class FileServerExtended {
     public synchronized String readRandom(String filename, boolean ignoreFirstLine) throws IOException {
         Random rand = new Random();
         int startPos = ignoreFirstLine ? 1 : 0;
-        int randPos = rand.nextInt((rowCount - startPos) + 1) + startPos;
+        int randPos = rand.nextInt(((rowCount -1) - startPos) + 1) + startPos;
         return readIndexed(filename, randPos);
     }
 
@@ -620,7 +626,6 @@ public class FileServerExtended {
         if(currPos < getRowCount()){
             line = readIndexed(filename, currPos);
         }
-
         if(ooValue.equalsIgnoreCase("Continue Cyclic")){
             if(currPos >= endPos){
                 readPos.set(startPos);

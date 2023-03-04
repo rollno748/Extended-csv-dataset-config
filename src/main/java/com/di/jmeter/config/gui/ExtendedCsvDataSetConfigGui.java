@@ -25,6 +25,8 @@ import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -50,7 +52,7 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
     private JRadioButton autoAllocateRButton;
     private JRadioButton allocateRButton;
     private JTextField blockSizeField;
-    private String[] fileEncodingValues = {"UTF-8", "UTF-16", "ISO-8859-15", "US-ASCII"};
+    private final String[] fileEncodingValues = {"UTF-8", "UTF-16", "ISO-8859-15", "US-ASCII"};
     private final String[] selectRowValues = {"Sequential", "Random", "Unique"};
     private final String[] updateValues = {"Each Iteration", "Once"};
     private final String[] ooValues = {"Continue Cyclic", "Continue with Last Value", "Abort Thread"};
@@ -158,7 +160,6 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
         allocateRButton = new JRadioButton();
         JLabel allocateLabel1 = new JLabel("Allocate");
         blockSizeField = new JTextField(3);
-        blockSizeField.setEnabled(false);
         JLabel allocateLabel2 = new JLabel(" values for each thread");
         JPanel radioButtonPanel2 = new JPanel();
         radioButtonPanel2.setLayout(new FlowLayout(FlowLayout.LEFT));
@@ -186,20 +187,15 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
         allocateLabel1.setEnabled(false);
         allocateLabel2.setEnabled(false);
         allocateRButton.setSelected(false);
-        blockSizeField.setEnabled(false);
+//        blockSizeField.setEnabled(false);
 
         rootPanel.add(csvDataSourceConfigBox, BorderLayout.NORTH);
         rootPanel.add(allocateBlockConfigBox, BorderLayout.CENTER);
 //        rootPanel.add(fileManipulatorConfigBox, BorderLayout.CENTER);
         add(rootPanel,BorderLayout.CENTER);
 
-        ignoreFirstLineCBox.addActionListener(e->{
-            LOGGER.debug("Ignore First line in csv is set as : {}", ignoreFirstLineCBox.getSelectedItem());
-        });
-
-        quotedDataCBox.addActionListener(e->{
-            LOGGER.debug("Quoted data in csv is set as : {}", quotedDataCBox.getSelectedItem());
-        });
+        ignoreFirstLineCBox.addActionListener(e-> LOGGER.debug("Ignore First line in csv is set as : {}", ignoreFirstLineCBox.getSelectedItem()));
+        quotedDataCBox.addActionListener(e-> LOGGER.debug("Quoted data in csv is set as : {}", quotedDataCBox.getSelectedItem()));
 
         selectRowCBox.addActionListener(e -> {
             LOGGER.debug("Selection is : {}", selectRowCBox.getSelectedItem());
@@ -211,7 +207,9 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
                 allocateLabel2.setEnabled(true);
                 autoAllocateRButton.setEnabled(true);
                 allocateRButton.setEnabled(true);
-                autoAllocateRButton.setSelected(true);
+                autoAllocateRButton.setSelected(autoAllocateRButton.isSelected());
+                allocateRButton.setSelected(allocateRButton.isSelected());
+                blockSizeField.setEnabled(allocateRButton.isSelected() && allocateRButton.isEnabled());
             }else{
                 ooValueCBox.setEnabled(false);
                 allocateConfigPanel.setEnabled(false);
