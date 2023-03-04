@@ -18,11 +18,14 @@ package com.di.jmeter.config;
 
 import com.di.jmeter.utils.FileServerExtended;
 import org.apache.commons.lang.StringUtils;
+import org.apache.jmeter.JMeter;
 import org.apache.jmeter.config.ConfigTestElement;
 import org.apache.jmeter.engine.event.LoopIterationEvent;
 import org.apache.jmeter.engine.event.LoopIterationListener;
 import org.apache.jmeter.engine.util.NoThreadClone;
+import org.apache.jmeter.gui.GuiPackage;
 import org.apache.jmeter.save.CSVSaveService;
+import org.apache.jmeter.testbeans.TestBean;
 import org.apache.jmeter.testelement.TestStateListener;
 import org.apache.jmeter.testelement.ThreadListener;
 import org.apache.jmeter.threads.JMeterContext;
@@ -33,7 +36,78 @@ import org.apache.jorphan.util.JOrphanUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Paths;
+import com.di.jmeter.utils.FileServerExtended;
+import org.apache.commons.lang.StringUtils;
+import org.apache.jmeter.JMeter;
+import org.apache.jmeter.config.ConfigTestElement;
+import org.apache.jmeter.engine.event.LoopIterationEvent;
+import org.apache.jmeter.engine.event.LoopIterationListener;
+import org.apache.jmeter.engine.util.NoThreadClone;
+import org.apache.jmeter.gui.GuiPackage;
+import org.apache.jmeter.save.CSVSaveService;
+import org.apache.jmeter.testbeans.TestBean;
+import org.apache.jmeter.testelement.TestStateListener;
+import org.apache.jmeter.testelement.ThreadListener;
+import org.apache.jmeter.threads.JMeterContext;
+import org.apache.jmeter.threads.JMeterContextService;
+import org.apache.jmeter.threads.JMeterVariables;
+import org.apache.jorphan.util.JMeterStopThreadException;
+import org.apache.jorphan.util.JOrphanUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Paths;
+import com.di.jmeter.utils.FileServerExtended;
+import org.apache.commons.lang.StringUtils;
+import org.apache.jmeter.JMeter;
+import org.apache.jmeter.config.ConfigTestElement;
+import org.apache.jmeter.engine.event.LoopIterationEvent;
+import org.apache.jmeter.engine.event.LoopIterationListener;
+import org.apache.jmeter.engine.util.NoThreadClone;
+import org.apache.jmeter.gui.GuiPackage;
+import org.apache.jmeter.save.CSVSaveService;
+import org.apache.jmeter.testbeans.TestBean;
+import org.apache.jmeter.testelement.TestStateListener;
+import org.apache.jmeter.testelement.ThreadListener;
+import org.apache.jmeter.threads.JMeterContext;
+import org.apache.jmeter.threads.JMeterContextService;
+import org.apache.jmeter.threads.JMeterVariables;
+import org.apache.jorphan.util.JMeterStopThreadException;
+import org.apache.jorphan.util.JOrphanUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Paths;
+import com.di.jmeter.utils.FileServerExtended;
+import org.apache.commons.lang.StringUtils;
+import org.apache.jmeter.JMeter;
+import org.apache.jmeter.config.ConfigTestElement;
+import org.apache.jmeter.engine.event.LoopIterationEvent;
+import org.apache.jmeter.engine.event.LoopIterationListener;
+import org.apache.jmeter.engine.util.NoThreadClone;
+import org.apache.jmeter.gui.GuiPackage;
+import org.apache.jmeter.save.CSVSaveService;
+import org.apache.jmeter.testbeans.TestBean;
+import org.apache.jmeter.testelement.TestStateListener;
+import org.apache.jmeter.testelement.ThreadListener;
+import org.apache.jmeter.threads.JMeterContext;
+import org.apache.jmeter.threads.JMeterContextService;
+import org.apache.jmeter.threads.JMeterVariables;
+import org.apache.jorphan.util.JMeterStopThreadException;
+import org.apache.jorphan.util.JOrphanUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Paths;
 
 public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThreadClone, LoopIterationListener, TestStateListener, ThreadListener {
     private static final long serialVersionUID = 767792680142202807L;
@@ -61,6 +135,7 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
     @Override
     public void iterationStart(LoopIterationEvent loopIterationEvent) {
         FileServerExtended fileServer = FileServerExtended.getFileServer();
+//        fileServer.setBaseForScript(new File(getFilename()));
         final JMeterContext context = getThreadContext();
         final String delimiter = getDelimiter();  // delimiter -> ',' (comma) will be default
         String[] lineValues = {};
@@ -164,7 +239,10 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
             fileServer.reserveFile(fileName, getFileEncoding(), alias, ignoreFirstLine);
             variables = JOrphanUtils.split(varNames, ",");
         }
-        fileServer.calculateRowCount(getFilename(), getVariableNames().isEmpty() && isIgnoreFirstLine());
+
+        if(!getSelectRow().equalsIgnoreCase("Sequential")){
+            fileServer.calculateRowCount(alias, getVariableNames().isEmpty() && isIgnoreFirstLine());
+        }
         if(getSelectRow().equalsIgnoreCase("Unique")){
             this.initBlockFeatures(fileServer, alias, context);
         }
@@ -214,6 +292,14 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
 
     @Override
     public void testStarted() {
+        FileServerExtended fileServer = FileServerExtended.getFileServer();
+        if(JMeter.isNonGUI()){
+            String baseDirectory = org.apache.jmeter.services.FileServer.getFileServer().getBaseDir();
+            fileServer.setBasedir(baseDirectory);
+        }else {
+            String testPlanFile = GuiPackage.getInstance().getTestPlanFile();
+            fileServer.setBasedir(testPlanFile);
+        }
     }
     @Override
     public void threadStarted() {
@@ -225,6 +311,12 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
 
     @Override
     public void testEnded() {
+        FileServerExtended fileServerExtended = FileServerExtended.getFileServer();
+        try{
+            fileServerExtended.closeFiles();
+        } catch (IOException e){
+            LOGGER.error("Exception occurred while closing file(s) : {}", e.toString());
+        }
     }
 
     @Override

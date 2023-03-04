@@ -582,8 +582,9 @@ public class FileServerExtended {
     }
 
     public void calculateRowCount(String filename, boolean ignoreLine) {
+        FileEntry fileEntry = files.get(filename);
         int count = 0;
-        try (BufferedReader br = new BufferedReader(new FileReader(filename))) {
+        try (BufferedReader br = new BufferedReader(new FileReader(String.valueOf(fileEntry.file.toPath())))) {
             count = (int) br.lines().count();
         } catch (IOException e) {
             e.printStackTrace();
