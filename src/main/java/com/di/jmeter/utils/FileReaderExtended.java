@@ -5,7 +5,7 @@ import java.util.List;
 
 public class FileReaderExtended {
     private static FileReaderExtended instance = null;
-    private static List<String> list = new ArrayList<String>();
+    private static List<String> list = new ArrayList<>();
 
     public static FileReaderExtended getInstance(){
         if(instance == null){

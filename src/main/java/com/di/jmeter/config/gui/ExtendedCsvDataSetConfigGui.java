@@ -25,8 +25,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -135,7 +133,7 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
 
         addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("When out of Values: ", JLabel.CENTER));
         addToPanel(csvDataSourcePanel, editConstraints, 1, row, ooValueCBox = new JComboBox<>(ooValues));
-//        row++;
+        row++;
 
         fileEncodingCBox.setEditable(true);
         csvDatasourceConfigPanel.add(csvDataSourcePanel, BorderLayout.NORTH);
@@ -187,7 +185,6 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
         allocateLabel1.setEnabled(false);
         allocateLabel2.setEnabled(false);
         allocateRButton.setSelected(false);
-//        blockSizeField.setEnabled(false);
 
         rootPanel.add(csvDataSourceConfigBox, BorderLayout.NORTH);
         rootPanel.add(allocateBlockConfigBox, BorderLayout.CENTER);

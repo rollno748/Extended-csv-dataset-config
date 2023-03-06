@@ -24,12 +24,8 @@ import java.awt.event.ActionListener;
 
 public class BrowseAction implements ActionListener {
     private final JTextField control;
-    private boolean isDirectoryBrowse = false;
+    private boolean isDirectoryBrowse;
     private String lastPath = ".";
-
-    public BrowseAction(JTextField filename) {
-        control = filename;
-    }
 
     public BrowseAction(JTextField filename, boolean isDirectoryBrowse) {
         control = filename;
@@ -55,7 +51,6 @@ public class BrowseAction implements ActionListener {
         if(isDirectoryBrowse) {
             ret.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
         }
-
         return ret;
     }
 }

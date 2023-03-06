@@ -25,7 +25,6 @@ import org.apache.jmeter.engine.event.LoopIterationListener;
 import org.apache.jmeter.engine.util.NoThreadClone;
 import org.apache.jmeter.gui.GuiPackage;
 import org.apache.jmeter.save.CSVSaveService;
-import org.apache.jmeter.testbeans.TestBean;
 import org.apache.jmeter.testelement.TestStateListener;
 import org.apache.jmeter.testelement.ThreadListener;
 import org.apache.jmeter.threads.JMeterContext;
@@ -36,78 +35,8 @@ import org.apache.jorphan.util.JOrphanUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Paths;
-import com.di.jmeter.utils.FileServerExtended;
-import org.apache.commons.lang.StringUtils;
-import org.apache.jmeter.JMeter;
-import org.apache.jmeter.config.ConfigTestElement;
-import org.apache.jmeter.engine.event.LoopIterationEvent;
-import org.apache.jmeter.engine.event.LoopIterationListener;
-import org.apache.jmeter.engine.util.NoThreadClone;
-import org.apache.jmeter.gui.GuiPackage;
-import org.apache.jmeter.save.CSVSaveService;
-import org.apache.jmeter.testbeans.TestBean;
-import org.apache.jmeter.testelement.TestStateListener;
-import org.apache.jmeter.testelement.ThreadListener;
-import org.apache.jmeter.threads.JMeterContext;
-import org.apache.jmeter.threads.JMeterContextService;
-import org.apache.jmeter.threads.JMeterVariables;
-import org.apache.jorphan.util.JMeterStopThreadException;
-import org.apache.jorphan.util.JOrphanUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Paths;
-import com.di.jmeter.utils.FileServerExtended;
-import org.apache.commons.lang.StringUtils;
-import org.apache.jmeter.JMeter;
-import org.apache.jmeter.config.ConfigTestElement;
-import org.apache.jmeter.engine.event.LoopIterationEvent;
-import org.apache.jmeter.engine.event.LoopIterationListener;
-import org.apache.jmeter.engine.util.NoThreadClone;
-import org.apache.jmeter.gui.GuiPackage;
-import org.apache.jmeter.save.CSVSaveService;
-import org.apache.jmeter.testbeans.TestBean;
-import org.apache.jmeter.testelement.TestStateListener;
-import org.apache.jmeter.testelement.ThreadListener;
-import org.apache.jmeter.threads.JMeterContext;
-import org.apache.jmeter.threads.JMeterContextService;
-import org.apache.jmeter.threads.JMeterVariables;
-import org.apache.jorphan.util.JMeterStopThreadException;
-import org.apache.jorphan.util.JOrphanUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Paths;
-import com.di.jmeter.utils.FileServerExtended;
-import org.apache.commons.lang.StringUtils;
-import org.apache.jmeter.JMeter;
-import org.apache.jmeter.config.ConfigTestElement;
-import org.apache.jmeter.engine.event.LoopIterationEvent;
-import org.apache.jmeter.engine.event.LoopIterationListener;
-import org.apache.jmeter.engine.util.NoThreadClone;
-import org.apache.jmeter.gui.GuiPackage;
-import org.apache.jmeter.save.CSVSaveService;
-import org.apache.jmeter.testbeans.TestBean;
-import org.apache.jmeter.testelement.TestStateListener;
-import org.apache.jmeter.testelement.ThreadListener;
-import org.apache.jmeter.threads.JMeterContext;
-import org.apache.jmeter.threads.JMeterContextService;
-import org.apache.jmeter.threads.JMeterVariables;
-import org.apache.jorphan.util.JMeterStopThreadException;
-import org.apache.jorphan.util.JOrphanUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Paths;
 
 public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThreadClone, LoopIterationListener, TestStateListener, ThreadListener {
     private static final long serialVersionUID = 767792680142202807L;
@@ -134,19 +63,18 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
 
     @Override
     public void iterationStart(LoopIterationEvent loopIterationEvent) {
-        FileServerExtended fileServer = FileServerExtended.getFileServer();
-//        fileServer.setBaseForScript(new File(getFilename()));
-        final JMeterContext context = getThreadContext();
         final String delimiter = getDelimiter();  // delimiter -> ',' (comma) will be default
+        final JMeterContext context = getThreadContext();
+        FileServerExtended fileServer = FileServerExtended.getFileServer();
         String[] lineValues = {};
         this.ignoreFirstLine = getPropertyAsBoolean(IGNORE_FIRST_LINE);
-        final boolean recycle = getOoValue().equalsIgnoreCase("Continue Cyclic") ? true : false;
+        final boolean recycle = getOoValue().equalsIgnoreCase("Continue Cyclic");
         if (variables == null) {
             FileServerExtended.setReadPos(0);
             initVars(fileServer, context, delimiter);
         }
-
         JMeterVariables jMeterVariables = context.getVariables();
+
         // Select Row -> Sequential, Random, Unique
         switch(getSelectRow().toLowerCase()){
             case "sequential":
@@ -331,7 +259,7 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
 
     /**
      * trim content of array varNames
-     * @param varsNames
+     * @param varsNames - Variable names
      */
     private void trimVarNames(String[] varsNames) {
         for (int i = 0; i < varsNames.length; i++) {
