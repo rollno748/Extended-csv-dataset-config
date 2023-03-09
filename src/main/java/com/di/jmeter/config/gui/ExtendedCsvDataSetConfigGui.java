@@ -107,12 +107,18 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
         addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("Filename: ", JLabel.RIGHT));
         addToPanel(csvDataSourcePanel, editConstraints, 1, row, filenameField = new JTextField(20));
         JButton browseButton;
-        addToPanel(csvDataSourcePanel, labelConstraints, 2, row, browseButton = new JButton("Browse..."));
+        JButton viewFileButton;
+        addToPanel(csvDataSourcePanel, labelConstraints, 2, row, browseButton = new JButton("..."));
+        addToPanel(csvDataSourcePanel, labelConstraints, 3, row, viewFileButton = new JButton("Edit"));
         row++;
         stretchItemToComponent(filenameField, browseButton);
         labelConstraints.insets = new java.awt.Insets(2, 0, 0, 0);
         editConstraints.insets = new java.awt.Insets(2, 0, 0, 0);
         browseButton.addActionListener(new BrowseAction(filenameField, false));
+
+        editConstraints.insets = new Insets(0, 5, 0, 0);
+        browseButton.setPreferredSize(new Dimension(30, filenameField.getPreferredSize().height));
+        editConstraints.anchor = GridBagConstraints.BASELINE;
 
         addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("File encoding: ", JLabel.CENTER));
         addToPanel(csvDataSourcePanel, editConstraints, 1, row, fileEncodingCBox = new JComboBox<>(fileEncodingValues));
@@ -120,8 +126,6 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
 
         addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("Variable Name(s): ", JLabel.CENTER));
         addToPanel(csvDataSourcePanel, editConstraints, 1, row, variableNamesField = new JTextField(30));
-        JButton viewFileButton;
-        addToPanel(csvDataSourcePanel, labelConstraints, 2, row, viewFileButton = new JButton("Open Editor"));
         row++;
 
         addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("Consider first line as Variable Name: ", JLabel.CENTER));
