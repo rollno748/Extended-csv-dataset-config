@@ -2,12 +2,12 @@
 
 ## Introduction
 
-This plugins provide additional features over the CSV data set config element for Jmeter. This also provides additional parameterization feature.
+This plugins provides additional feature over the JMeter's default CSV data set config element. This also provides additional parameterization feature.
 
 This will enable **LoadRunner** users, the privilege of having similar parameter advantage in **Apache JMeter**
 
 ## Preview
-![Extended CSV Dataset Config](/images/ExtendedCSV.png)
+![Extended CSV Dataset Config](/images/ExtendedCsvDataSetConfig.png)
 
 ## Required Components
 
@@ -21,9 +21,9 @@ This will enable **LoadRunner** users, the privilege of having similar parameter
 
 ## Installation Instructions
 
-* Download the source code from the Github.
+* Download the source code from the GitHub.
 * Just do a mvn clean install (M2 is required)
-* Jar will be generated under the target directory (di-extended-csv-1.0.jar).
+* Jar will be generated under the target directory (di-extended-csv-1.2.jar).
 * Copy the Jar to \<Jmeter Installed Directory\>/lib/ext/
 
 
@@ -37,18 +37,18 @@ This allows reading of CSV data as follows
 
 The below table is the combinations allowed while using this plugin 
 
-|Select Row|Update value| Out of Values |Allocate Block Size|
-| ------ | ------ |------| ------ |
-|Sequential|Each Iteration| Continue Cyclic|NA|
-|Sequential|Each Iteration| Abort Thread|NA|
-|Sequential|Each Iteration| Continue with Last value|NA|
-|Sequential|Once| NA   |NA|
-|Random|Each Iteration| NA   |NA|
-|Random|Once| NA   |NA|
-|Unique|Each Iteration| Continue with Last Value |Enabled|
-|Unique|Each Iteration| Continue Cyclic |Enabled|
-|Unique|Each Iteration| Abort Thread |Enabled|
-|Unique|Once| NA   |NA|
+| Select Row | Update value   | Out of Values            | Allocate Block Size |
+|------------|----------------|--------------------------|---------------------|
+| Sequential | Each Iteration | Continue Cyclic          | NA                  |
+| Sequential | Each Iteration | Abort Thread             | NA                  |
+| Sequential | Each Iteration | Continue with Last value | NA                  |
+| Sequential | Once           | NA                       | NA                  |
+| Random     | Each Iteration | NA                       | NA                  |
+| Random     | Once           | NA                       | NA                  |
+| Unique     | Each Iteration | Continue with Last Value | Enabled             |
+| Unique     | Each Iteration | Continue Cyclic          | Enabled             |
+| Unique     | Each Iteration | Abort Thread             | Enabled             |
+| Unique     | Once           | NA                       | NA                  |
 
 
 ## Future Release in pipeline
