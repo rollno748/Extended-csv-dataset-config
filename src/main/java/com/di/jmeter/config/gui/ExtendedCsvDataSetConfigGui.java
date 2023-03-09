@@ -14,8 +14,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Objects;
 
-import static com.di.jmeter.config.ExtendedCsvDataSetConfig.IGNORE_FIRST_LINE;
-import static com.di.jmeter.config.ExtendedCsvDataSetConfig.QUOTED_DATA;
+import static com.di.jmeter.config.ExtendedCsvDataSetConfig.*;
 
 public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
     private static final long serialVersionUID = 240L;
@@ -70,8 +69,9 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
             eCsvDataSetConfig.setFilename(this.filenameField.getText());
             eCsvDataSetConfig.setFileEncoding(this.fileEncodingCBox.getItemAt(fileEncodingCBox.getSelectedIndex()));
             eCsvDataSetConfig.setVariableNames(this.variableNamesField.getText());
-            eCsvDataSetConfig.setIgnoreFirstLine(IGNORE_FIRST_LINE, (Boolean) ignoreFirstLineCBox.getSelectedItem());
-            eCsvDataSetConfig.setQuotedData(QUOTED_DATA, (Boolean) quotedDataCBox.getSelectedItem());
+            eCsvDataSetConfig.setIgnoreFirstLine(this.ignoreFirstLineCBox.getItemAt(ignoreFirstLineCBox.getSelectedIndex()));
+            eCsvDataSetConfig.setDelimiter(this.delimiterField.getText());
+            eCsvDataSetConfig.setQuotedData(this.quotedDataCBox.getItemAt(quotedDataCBox.getSelectedIndex()));
             eCsvDataSetConfig.setSelectRow(this.selectRowCBox.getItemAt(selectRowCBox.getSelectedIndex()));
             eCsvDataSetConfig.setUpdateValue(this.updateValueCBox.getItemAt(updateValueCBox.getSelectedIndex()));
             eCsvDataSetConfig.setOoValue(this.ooValueCBox.getItemAt(ooValueCBox.getSelectedIndex()));

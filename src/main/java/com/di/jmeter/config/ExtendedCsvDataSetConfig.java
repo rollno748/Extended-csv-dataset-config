@@ -265,27 +265,29 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements LoopI
     public boolean isIgnoreFirstLine() {
         return getPropertyAsBoolean(IGNORE_FIRST_LINE);
     }
-    public void setIgnoreFirstLine(String ignoreFirstLine, Boolean selectedItem) {
-        setProperty(ignoreFirstLine, selectedItem);
+    public void setIgnoreFirstLine(Boolean selectedItem) {
+        setProperty(IGNORE_FIRST_LINE, selectedItem);
     }
     public String getDelimiter() {
-        String delim = null;
-        if ("\\t".equals(getPropertyAsString(DELIMITER))) {
-            delim = "\t";
-        } else if (getPropertyAsString(DELIMITER).isEmpty()){
-            LOGGER.debug("Empty delimiter, ',' (Comma) will be used by default");
-            delim = ",";
-        }
-        return delim;
+        return getPropertyAsString(DELIMITER);
     }
     public void setDelimiter(String delimiter) {
-        setProperty(DELIMITER, delimiter);
+        String delim = null;
+        if ("\\t".equals(delimiter)) {
+            delim = "\t";
+        } else if (delimiter.isEmpty()){
+            LOGGER.debug("Empty delimiter, ',' (Comma) will be used by default");
+            delim = ",";
+        }else{
+            delim = delimiter;
+        }
+        setProperty(DELIMITER, delim);
     }
     public boolean isQuotedData() {
         return getPropertyAsBoolean(QUOTED_DATA);
     }
-    public void setQuotedData(String quotedData, Boolean selectedItem) {
-        setProperty(quotedData, selectedItem);
+    public void setQuotedData(Boolean selectedItem) {
+        setProperty(QUOTED_DATA, selectedItem);
     }
     public String getSelectRow() {
         return getPropertyAsString(SELECT_ROW);
