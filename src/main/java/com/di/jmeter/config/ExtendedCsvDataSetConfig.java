@@ -1,32 +1,15 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package com.di.jmeter.config;
 
 import com.di.jmeter.utils.FileServerExtended;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.jmeter.JMeter;
 import org.apache.jmeter.config.ConfigTestElement;
 import org.apache.jmeter.engine.event.LoopIterationEvent;
 import org.apache.jmeter.engine.event.LoopIterationListener;
-import org.apache.jmeter.engine.util.NoThreadClone;
+import org.apache.jmeter.engine.util.NoConfigMerge;
 import org.apache.jmeter.gui.GuiPackage;
 import org.apache.jmeter.save.CSVSaveService;
 import org.apache.jmeter.testelement.TestStateListener;
-import org.apache.jmeter.testelement.ThreadListener;
 import org.apache.jmeter.threads.JMeterContext;
 import org.apache.jmeter.threads.JMeterContextService;
 import org.apache.jmeter.threads.JMeterVariables;
@@ -37,8 +20,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
-
-public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThreadClone, LoopIterationListener, TestStateListener, ThreadListener {
+public class ExtendedCsvDataSetConfig extends ConfigTestElement implements LoopIterationListener, TestStateListener, NoConfigMerge {
     private static final long serialVersionUID = 767792680142202807L;
     private static final Logger LOGGER = LoggerFactory.getLogger(ExtendedCsvDataSetConfig.class);
     public static final String FILENAME = "filename";
@@ -54,35 +36,32 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
     public static final String AUTO_ALLOCATE = "autoAllocate";
     public static final String ALLOCATE = "allocate";
     public static final String BLOCK_SIZE = "blockSize";
-    private transient String[] variables;
-    private boolean recycleFile = false;
-    private transient String alias;
-    private boolean ignoreFirstLine = false;
-    private boolean firstLineIsNames = false;
+    private String[] variables;
+    private String alias;
+    private boolean recycleFile;
+    private boolean ignoreFirstLine;
+    private boolean firstLineIsNames;
     private boolean updateOnceFlag = true;
 
     @Override
-    public void iterationStart(LoopIterationEvent loopIterationEvent) {
-        final String delimiter = getDelimiter();  // delimiter -> ',' (comma) will be default
+    public void iterationStart(LoopIterationEvent iterationEvent) {
         final JMeterContext context = getThreadContext();
+        final String delimiter = this.getDelimiter();
         FileServerExtended fileServer = FileServerExtended.getFileServer();
         String[] lineValues = {};
-        this.ignoreFirstLine = getPropertyAsBoolean(IGNORE_FIRST_LINE);
-        final boolean recycle = getOoValue().equalsIgnoreCase("Continue Cyclic");
         if (variables == null) {
             FileServerExtended.setReadPos(0);
             initVars(fileServer, context, delimiter);
         }
         JMeterVariables jMeterVariables = context.getVariables();
-
         // Select Row -> Sequential, Random, Unique
         switch(getSelectRow().toLowerCase()){
             case "sequential":
                 try{
                     if(isQuotedData()){
-                        lineValues = fileServer.getParsedLine(alias, recycle, firstLineIsNames || ignoreFirstLine, delimiter.charAt(0));
+                        lineValues = fileServer.getParsedLine(alias, recycleFile, firstLineIsNames || ignoreFirstLine, delimiter.charAt(0));
                     }else{
-                        String line = fileServer.readLine(alias, recycle, ignoreFirstLine);
+                        String line = fileServer.readLine(alias, recycleFile, ignoreFirstLine);
                         LOGGER.debug("Sequential line fetched : {}", line);
                         lineValues = JOrphanUtils.split(line, delimiter, false);
                     }
@@ -94,7 +73,7 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
             case "random":
                 try{
                     if(isQuotedData()){
-                        lineValues = fileServer.getParsedLine(alias, recycle, firstLineIsNames || ignoreFirstLine, delimiter.charAt(0));
+                        lineValues = fileServer.getParsedLine(alias, recycleFile, firstLineIsNames || ignoreFirstLine, delimiter.charAt(0));
                     }else{
                         String line = fileServer.readRandom(alias, ignoreFirstLine);
                         LOGGER.debug("Random line fetched : {}", line);
@@ -107,7 +86,7 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
             case "unique":
                 try{
                     if(isQuotedData()){
-                        lineValues = fileServer.getParsedLine(alias, recycle, firstLineIsNames || ignoreFirstLine, delimiter.charAt(0));
+                        lineValues = fileServer.getParsedLine(alias, recycleFile, firstLineIsNames || ignoreFirstLine, delimiter.charAt(0));
                     }else{
                         String line = fileServer.readUnique(alias, ignoreFirstLine, getOoValue(), FileServerExtended.getReadPos(), FileServerExtended.getStartPos(), FileServerExtended.getEndPos());
                         LOGGER.debug("Unique line fetched : {}", line);
@@ -119,7 +98,7 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
                 break;
         }
 
-//        Update Value --> Each Iteration, Once
+        //        Update Value --> Each Iteration, Once
         switch (getPropertyAsString(UPDATE_VALUE).toLowerCase()) {
             case "each iteration":
                 if(lineValues.length > 0){
@@ -143,15 +122,18 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
                 throw new JMeterStopThreadException("Invalid selection :" + getFilename() + " detected for Extended CSV DataSet:"
                         + getName() + " configured to Select Row Parameter :" + getUpdateValue());
         }
+        
+        LOGGER.info("Thread : {} \n {}", context.getThread().getThreadName(), jMeterVariables);
     }
 
     private void initVars(FileServerExtended fileServer, JMeterContext context, String delimiter) {
         String fileName = getFilename().trim();
         final String varNames = getVariableNames();
         setAlias(context, fileName);
+        this.ignoreFirstLine = this.isIgnoreFirstLine();
 
         if(getOoValue() != null && getOoValue().equalsIgnoreCase("Continue Cyclic")){
-            this.setRecycleFile(true);
+            this.recycleFile = true;
         }
         if (StringUtils.isEmpty(varNames)) {
             String header = fileServer.reserveFile(fileName, getFileEncoding(), alias, true);
@@ -164,7 +146,7 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
                 throw new IllegalArgumentException("Could not split CSV header line from file:" + fileName, e);
             }
         }else{
-            fileServer.reserveFile(fileName, getFileEncoding(), alias, ignoreFirstLine);
+            fileServer.reserveFile(fileName, getFileEncoding(), alias, isIgnoreFirstLine());
             variables = JOrphanUtils.split(varNames, ",");
         }
 
@@ -191,30 +173,29 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
             }
         }
         //Set Start and end position to block
-        FileServerExtended.setReadPosition(threadName, blockSize, ignoreFirstLine);
+        FileServerExtended.setReadPosition(threadName, blockSize, isIgnoreFirstLine());
         if(FileServerExtended.getReadPos() == 0){
             FileServerExtended.setReadPos(FileServerExtended.getStartPos());
         }
     }
 
     private void setAlias(final JMeterContext context, String alias) {
+        switch (getShareMode()) {
+            case "All threads":
+                this.alias = alias;
+                break;
+            case "Current thread group":
+                this.alias = alias + "@" + System.identityHashCode(context.getThreadGroup());
+                break;
+            case "Current thread":
+                this.alias = alias + "@" + System.identityHashCode(context.getThread());
+                break;
+            default:
+                this.alias = alias + "@" + getShareMode();
+                break;
+        }
         if(getSelectRow().equalsIgnoreCase("Sequential")){
             this.alias = alias + "@" + System.identityHashCode(context.getThread());
-        }else{
-            switch (getShareMode()) {
-                case "share all":
-                    this.alias = alias;
-                    break;
-                case "share group":
-                    this.alias = alias + "@" + System.identityHashCode(context.getThreadGroup());
-                    break;
-                case "share thread":
-                    this.alias = alias + "@" + System.identityHashCode(context.getThread());
-                    break;
-                default:
-                    this.alias = alias + "@" + getShareMode();
-                    break;
-            }
         }
     }
 
@@ -229,13 +210,6 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
             fileServer.setBasedir(testPlanFile);
         }
     }
-    @Override
-    public void threadStarted() {
-    }
-
-    @Override
-    public void threadFinished() {
-    }
 
     @Override
     public void testEnded() {
@@ -248,12 +222,12 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
     }
 
     @Override
-    public void testStarted(String s) {
+    public void testStarted(String host) {
         testStarted();
     }
 
     @Override
-    public void testEnded(String s) {
+    public void testEnded(String host) {
         testEnded();
     }
 
@@ -267,7 +241,9 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
         }
     }
 
-    //Getters and Setters
+    /**
+     * Getters and setters for the Config variables
+     */
     public String getFilename() {
         return getPropertyAsString(FILENAME);
     }
@@ -289,8 +265,8 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
     public boolean isIgnoreFirstLine() {
         return getPropertyAsBoolean(IGNORE_FIRST_LINE);
     }
-    public void setIgnoreFirstLine(String ignoreFirstLine) {
-        setProperty(IGNORE_FIRST_LINE, ignoreFirstLine);
+    public void setIgnoreFirstLine(String ignoreFirstLine, Boolean selectedItem) {
+        setProperty(ignoreFirstLine, selectedItem);
     }
     public String getDelimiter() {
         String delim = null;
@@ -309,7 +285,7 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
         return getPropertyAsBoolean(QUOTED_DATA);
     }
     public void setQuotedData(String quotedData, Boolean selectedItem) {
-        setProperty(QUOTED_DATA, quotedData);
+        setProperty(quotedData, selectedItem);
     }
     public String getSelectRow() {
         return getPropertyAsString(SELECT_ROW);
@@ -329,10 +305,10 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
     public void setOoValue(String ooValue) {
         setProperty(OO_VALUE, ooValue);
     }
-    private void setShareMode(String mode){
+    public void setShareMode(String mode){
         setProperty(SHARE_MODE, mode);
     }
-    private String getShareMode() {
+    public String getShareMode() {
         return getPropertyAsString(SHARE_MODE);
     }
     public boolean isAutoAllocate() {
@@ -353,13 +329,7 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements NoThr
     public void setBlockSize(String blockSize) {
         setProperty(BLOCK_SIZE, blockSize);
     }
-    public boolean isRecycleFile() {
-        return recycleFile;
-    }
-    public void setRecycleFile(boolean recycleFile) {
-        this.recycleFile = recycleFile;
-    }
     public String printAllProperties() {
-        return String.format("Filename: %s\n,FileEncoding: %s\n, VariableName: %s\n, IgnoreFirstLine: %s\n, Delimiter: %s\n, IsQuotedData: %s\n, SelectRow: %s\n, UpdateValue: %s\n, OOValue: %s\n, AutoAllocate: %s\n, Allocate: %s\n, BlockSize: %s\n",getFilename(),getFileEncoding(),getVariableNames(),isIgnoreFirstLine(), getDelimiter(),isQuotedData(),getSelectRow(),getUpdateValue(),getOoValue(),isAllocate(),isAutoAllocate(),getBlockSize());
+        return String.format("Filename: %s\n,FileEncoding: %s\n VariableName: %s\n IgnoreFirstLine: %s\n Delimiter: %s\n IsQuotedData: %s\n SelectRow: %s\n UpdateValue: %s\n OOValue: %s\n AutoAllocate: %s\n Allocate: %s\n BlockSize: %s\n",getFilename(),getFileEncoding(),getVariableNames(),isIgnoreFirstLine(),getDelimiter(),isQuotedData(),getSelectRow(),getUpdateValue(),getOoValue(),isAllocate(),isAutoAllocate(),getBlockSize());
     }
 }
