@@ -204,6 +204,24 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
         allocateLabel1.setEnabled(false);
         allocateLabel2.setEnabled(false);
         allocateRButton.setSelected(false);
+        /*
+         * tooltip goes here
+         */
+        filenameField.setToolTipText("Name of the file that holds the csv data (relative or absolute filename)");
+        browseButton.setToolTipText("Browse...");
+        viewFileButton.setToolTipText("View/Edit file in system default editor");
+        fileEncodingCBox.setToolTipText("The character set encoding used in the file");
+        variableNamesField.setToolTipText("List your variable names in order to match the order of columns in your csv data. Keep it empty to use the first line of the file for variable names");
+        ignoreFirstLineCBox.setToolTipText("Ignore first line of CSV file, it will only be used used if Variable Names is not empty, if Variable Names is empty the first line must contain the headers");
+        delimiterField.setToolTipText("Enter the delimiter ('\\t' for tab)");
+        quotedDataCBox.setToolTipText("Allow CSV data values to be quoted?");
+        selectRowCBox.setToolTipText("Options on reading file");
+        updateValueCBox.setToolTipText("Options on update parameter during run");
+        ooValueCBox.setToolTipText("Options while reaching EOF");
+        sharingModeCBox.setToolTipText("Select which threads share the same file pointer");
+        autoAllocateRButton.setToolTipText("Automatically calculates the blocksize for each thread(s)");
+        allocateRButton.setToolTipText("Custom allocation of blocksize for each thread(s)");
+        blockSizeField.setToolTipText("Blocksize value for custom allocation of threads");
 
         rootPanel.add(csvDataSourceConfigBox, BorderLayout.NORTH);
         rootPanel.add(allocateBlockConfigBox, BorderLayout.CENTER);
