@@ -580,7 +580,15 @@ public class FileServerExtended {
         this.scriptName = scriptName;
     }
 
-    public void calculateRowCount(String filename, boolean ignoreLine) {
+    /**
+     * Get the number of rows count for the named file
+     *
+     * @param filename the filename or alias that was used to reserve the file
+     * @param ignoreFirstLine Consider first line as variable name ?
+     * @return String containing the next line in the file
+     * @throws IOException when reading of the file fails, or the file was not reserved properly
+     */
+    public void calculateRowCount(String filename, boolean ignoreFirstLine) {
         FileEntry fileEntry = files.get(filename);
         int count = 0;
         try (BufferedReader br = new BufferedReader(new FileReader(String.valueOf(fileEntry.file.toPath())))) {
@@ -588,13 +596,21 @@ public class FileServerExtended {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        this.setRowCount(ignoreLine ? count-1 : count );
+        this.setRowCount(ignoreFirstLine ? count-1 : count );
     }
 
+    /**
+     * Set the read position to Thread local (specific to each thread)
+     *
+     * @param threadName the filename or alias that was used to reserve the file
+     * @param blockSize Set the block
+     * @param ignoreFirstLine Consider first line as variable name ?
+     * @return String containing the next line in the file
+     * @throws IOException when reading of the file fails, or the file was not reserved properly
+     */
     public static void setReadPosition(String threadName, int blockSize, boolean ignoreFirstLine) {
         int head = ignoreFirstLine ? 1 : 0;
         int endPos = (Integer.parseInt(threadName.substring(threadName.lastIndexOf('-') + 1)) * blockSize) - 1;
-        //setEndPos((Integer.parseInt(threadName.substring(threadName.lastIndexOf('-') + 1)) * blockSize) - 1);
         setEndPos(endPos);
         setStartPos((getEndPos() - blockSize) + 1);
         if(ignoreFirstLine){
@@ -603,17 +619,14 @@ public class FileServerExtended {
         }
     }
 
-    public synchronized String readSequential(String filename, boolean ignoreFirstLine, String ooValue) throws IOException {
-        boolean recycle = ooValue.equalsIgnoreCase("Continue Cyclic") ? true: false;
-
-        String line = readLine(filename, recycle, ignoreFirstLine);
-        if(line == null && ooValue.equalsIgnoreCase("abort thread")){
-            throw new JMeterStopThreadException("End of file detected for Extended CSV DataSet :"
-                    + filename + " configured with stopThread: " + ooValue);
-        }
-        return line;
-    }
-
+    /**
+     * Get the random line using index of the named file
+     *
+     * @param filename the filename or alias that was used to reserve the file
+     * @param ignoreFirstLine Consider first line as variable name ?
+     * @return String containing the next line in the file
+     * @throws IOException when reading of the file fails, or the file was not reserved properly
+     */
     public synchronized String readRandom(String filename, boolean ignoreFirstLine) throws IOException {
         Random rand = new Random();
         int startPos = ignoreFirstLine ? 1 : 0;
@@ -621,6 +634,18 @@ public class FileServerExtended {
         return readIndexed(filename, randPos);
     }
 
+    /**
+     * Get the indexed line of the named file according to thread specific (Thread local)
+     *
+     * @param filename the filename or alias that was used to reserve the file
+     * @param ignoreFirstLine Consider first line as variable name?
+     * @param ooValue Out of value handler (recycle/abort thread/ Continue with last used value)
+     * @param currPos - position in the allocated block (Read position - specific to thread local)
+     * @param startPos - Starting position in the allocated block (start position - specific to thread local)
+     * @param endPos - Ending position in the allocated block (End position - specific to thread local)
+     * @return String containing the next line in the file
+     * @throws IOException when reading of the file fails, or the file was not reserved properly
+     */
     public synchronized String readUnique(String filename, boolean ignoreFirstLine, String ooValue, int currPos, int startPos, int endPos) throws IOException {
         String line = null;
         if(currPos < getRowCount()){
@@ -650,7 +675,7 @@ public class FileServerExtended {
     }
 
     /**
-     * Get the next line of the named file
+     * Get the indexed line of the named file
      *
      * @param filename the filename or alias that was used to reserve the file
      * @param pos - line number to fetch from the file (starts from 0)
