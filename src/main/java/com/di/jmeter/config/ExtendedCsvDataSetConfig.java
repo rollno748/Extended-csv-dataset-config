@@ -120,8 +120,6 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements LoopI
                 throw new JMeterStopThreadException("Invalid selection :" + getFilename() + " detected for Extended CSV DataSet:"
                         + getName() + " configured to Select Row Parameter :" + getUpdateValue());
         }
-        
-        LOGGER.info("Thread : {} \n {}", context.getThread().getThreadName(), jMeterVariables);
     }
 
     private void initVars(FileServerExtended fileServer, JMeterContext context, String delimiter) {
