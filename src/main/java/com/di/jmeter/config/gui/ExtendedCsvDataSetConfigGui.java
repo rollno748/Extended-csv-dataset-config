@@ -254,17 +254,28 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
 
         viewFileButton.addActionListener(e -> {
             try {
+
                 Desktop desktop = Desktop.getDesktop();
                 if(filenameField.getText().equals("") || filenameField.getText().isEmpty()){
                     throw new FileNotFoundException();
                 }
 
-                if(desktop.isSupported(Desktop.Action.EDIT)){
-                    desktop.edit(new File(filenameField.getText()));
-                }else if(desktop.isSupported(Desktop.Action.OPEN)){
-                    desktop.open(new File(filenameField.getText()));
-                }else{
-                    JOptionPane.showMessageDialog(new ExtendedCsvDataSetConfigGui(), "Unable to get the default editor");
+                File file = new File(filenameField.getText());
+                if(!file.exists()){
+                    int selection = JOptionPane.showConfirmDialog(new ExtendedCsvDataSetConfigGui(), "File does not exist. Do you want to create it ?",
+                            "File not Found", JOptionPane.YES_NO_OPTION);
+                    if(selection == JOptionPane.YES_OPTION){
+                        file.createNewFile();
+                    }
+                    if(file.exists()){
+                        if(desktop.isSupported(Desktop.Action.EDIT)){
+                            desktop.edit(new File(filenameField.getText()));
+                        }else if(desktop.isSupported(Desktop.Action.OPEN)){
+                            desktop.open(new File(filenameField.getText()));
+                        }else{
+                            JOptionPane.showMessageDialog(new ExtendedCsvDataSetConfigGui(), "Unable to get the default editor");
+                        }
+                    }
                 }
             } catch (FileNotFoundException fne){
                 JOptionPane.showMessageDialog(new ExtendedCsvDataSetConfigGui(),"Invalid File path.");
