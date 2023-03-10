@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This plugins provides additional feature over the JMeter's default CSV data set config element. This also provides additional parameterization feature.
+This plugin provides additional feature over the JMeter's default **CSV data set config element**. This also provides additional parameterization feature.
 
 This will enable **LoadRunner** users, the privilege of having similar parameter advantage in **Apache JMeter**
 
@@ -23,11 +23,22 @@ This will enable **LoadRunner** users, the privilege of having similar parameter
 
 * Download the source code from the GitHub.
 * Just do a mvn clean install (M2 is required)
-* Jar will be generated under the target directory (di-extended-csv-1.2.jar).
+* Jar will be generated under the target directory (di-extended-csv-xx.jar).
 * Copy the Jar to \<Jmeter Installed Directory\>/lib/ext/
+
+## What's new ?
+
+* Improved new GUI
+* Added feature to create new file
+* Added feature to edit csv file with default text editor
+* Fixed quoted data issue
+* Fixed relative path issue
+* Support for large csv (Moved out of In-memory read)
 
 
 ## Options
+
+✨ This version eliminates remembering the below combination table ✨
 
 This allows reading of CSV data as follows
 
@@ -53,7 +64,8 @@ The below table is the combinations allowed while using this plugin
 
 ## Future Release in pipeline
 
- * Create GUI class for UI instead of BeanInfo 
+ * Visualizing csv data in data table
+ * Simulate Parameter window
  
 
 ## References
