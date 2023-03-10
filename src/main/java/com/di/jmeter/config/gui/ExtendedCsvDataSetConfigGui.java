@@ -14,7 +14,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Objects;
 
-import static com.di.jmeter.config.ExtendedCsvDataSetConfig.*;
 
 public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
     private static final long serialVersionUID = 240L;
@@ -154,7 +153,6 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
 
         addToPanel(csvDataSourcePanel, labelConstraints, 0, row, new JLabel("Sharing Mode: ", JLabel.CENTER));
         addToPanel(csvDataSourcePanel, editConstraints, 1, row, sharingModeCBox = new JComboBox<>(sharingModeValues));
-//        row++;
 
         fileEncodingCBox.setEditable(true);
         csvDatasourceConfigPanel.add(csvDataSourcePanel, BorderLayout.NORTH);
@@ -196,7 +194,7 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
         add(allocateBlockConfigBoxPanel, BorderLayout.CENTER);
         allocateBlockConfigBox.add(allocateBlockConfigBoxPanel);
 
-        ooValueCBox.setEnabled(false);
+        ooValueCBox.setEnabled(true);
         allocateConfigPanel.setEnabled(false);
         allocateBlockConfigBoxPanel.setEnabled(false);
         autoAllocateRButton.setEnabled(false);
@@ -209,7 +207,6 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
 
         rootPanel.add(csvDataSourceConfigBox, BorderLayout.NORTH);
         rootPanel.add(allocateBlockConfigBox, BorderLayout.CENTER);
-//        rootPanel.add(fileManipulatorConfigBox, BorderLayout.CENTER);
         add(rootPanel,BorderLayout.CENTER);
 
         ignoreFirstLineCBox.addActionListener(e-> LOGGER.debug("Ignore First line in csv is set as : {}", ignoreFirstLineCBox.getSelectedItem()));
@@ -226,6 +223,17 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
                 allocateLabel2.setEnabled(true);
                 autoAllocateRButton.setEnabled(true);
                 allocateRButton.setEnabled(true);
+                autoAllocateRButton.setSelected(autoAllocateRButton.isSelected());
+                allocateRButton.setSelected(allocateRButton.isSelected());
+                blockSizeField.setEnabled(allocateRButton.isSelected() && allocateRButton.isEnabled());
+            }else if(Objects.equals(selectRowCBox.getSelectedItem(), "Sequential")){
+                ooValueCBox.setEnabled(true);
+                allocateConfigPanel.setEnabled(false);
+                autoAllocateLabel.setEnabled(false);
+                allocateLabel1.setEnabled(false);
+                allocateLabel2.setEnabled(false);
+                autoAllocateRButton.setEnabled(false);
+                allocateRButton.setEnabled(false);
                 autoAllocateRButton.setSelected(autoAllocateRButton.isSelected());
                 allocateRButton.setSelected(allocateRButton.isSelected());
                 blockSizeField.setEnabled(allocateRButton.isSelected() && allocateRButton.isEnabled());
@@ -254,27 +262,25 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
 
         viewFileButton.addActionListener(e -> {
             try {
-
+                File file = new File(filenameField.getText());
                 Desktop desktop = Desktop.getDesktop();
                 if(filenameField.getText().equals("") || filenameField.getText().isEmpty()){
                     throw new FileNotFoundException();
                 }
-
-                File file = new File(filenameField.getText());
                 if(!file.exists()){
                     int selection = JOptionPane.showConfirmDialog(new ExtendedCsvDataSetConfigGui(), "File does not exist. Do you want to create it ?",
                             "File not Found", JOptionPane.YES_NO_OPTION);
                     if(selection == JOptionPane.YES_OPTION){
                         file.createNewFile();
                     }
-                    if(file.exists()){
-                        if(desktop.isSupported(Desktop.Action.EDIT)){
-                            desktop.edit(new File(filenameField.getText()));
-                        }else if(desktop.isSupported(Desktop.Action.OPEN)){
-                            desktop.open(new File(filenameField.getText()));
-                        }else{
-                            JOptionPane.showMessageDialog(new ExtendedCsvDataSetConfigGui(), "Unable to get the default editor");
-                        }
+                }
+                if(file.exists()){
+                    if(desktop.isSupported(Desktop.Action.EDIT)){
+                        desktop.edit(new File(filenameField.getText()));
+                    }else if(desktop.isSupported(Desktop.Action.OPEN)){
+                        desktop.open(new File(filenameField.getText()));
+                    }else{
+                        JOptionPane.showMessageDialog(new ExtendedCsvDataSetConfigGui(), "Unable to get the default editor");
                     }
                 }
             } catch (FileNotFoundException fne){

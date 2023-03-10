@@ -40,7 +40,6 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements LoopI
     private String alias;
     private boolean recycleFile;
     private boolean ignoreFirstLine;
-    private boolean firstLineIsNames;
     private boolean updateOnceFlag = true;
 
     @Override
@@ -58,25 +57,24 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements LoopI
         switch(getSelectRow().toLowerCase()){
             case "sequential":
                 try{
+                    String line = fileServer.readLine(alias, recycleFile, ignoreFirstLine);
+                    LOGGER.debug("Sequential line fetched : {}", line);
                     if(isQuotedData()){
-                        lineValues = fileServer.getParsedLine(alias, recycleFile, firstLineIsNames || ignoreFirstLine, delimiter.charAt(0));
+                        lineValues = fileServer.csvReadLine(line, delimiter.charAt(0));
                     }else{
-                        String line = fileServer.readLine(alias, recycleFile, ignoreFirstLine);
-                        LOGGER.debug("Sequential line fetched : {}", line);
                         lineValues = JOrphanUtils.split(line, delimiter, false);
                     }
                 }catch(IOException e){
                     LOGGER.error(e.toString());
                 }
-
                 break;
             case "random":
                 try{
+                    String line = fileServer.readRandom(alias, ignoreFirstLine);
+                    LOGGER.debug("Random line fetched : {}", line);
                     if(isQuotedData()){
-                        lineValues = fileServer.getParsedLine(alias, recycleFile, firstLineIsNames || ignoreFirstLine, delimiter.charAt(0));
+                        lineValues = fileServer.csvReadLine(line, delimiter.charAt(0));
                     }else{
-                        String line = fileServer.readRandom(alias, ignoreFirstLine);
-                        LOGGER.debug("Random line fetched : {}", line);
                         lineValues = JOrphanUtils.split(line, delimiter, false);
                     }
                 }catch(IOException e){
@@ -85,17 +83,19 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements LoopI
                 break;
             case "unique":
                 try{
+                    String line = fileServer.readUnique(alias, ignoreFirstLine, getOoValue(), FileServerExtended.getReadPos(), FileServerExtended.getStartPos(), FileServerExtended.getEndPos());
+                    LOGGER.debug("Unique line fetched : {}", line);
                     if(isQuotedData()){
-                        lineValues = fileServer.getParsedLine(alias, recycleFile, firstLineIsNames || ignoreFirstLine, delimiter.charAt(0));
+                        lineValues = fileServer.csvReadLine(line, delimiter.charAt(0));
                     }else{
-                        String line = fileServer.readUnique(alias, ignoreFirstLine, getOoValue(), FileServerExtended.getReadPos(), FileServerExtended.getStartPos(), FileServerExtended.getEndPos());
-                        LOGGER.debug("Unique line fetched : {}", line);
                         lineValues = JOrphanUtils.split(line, delimiter, false);
                     }
                 }catch(IOException e){
                     LOGGER.error(e.toString());
                 }
                 break;
+            default:
+                throw new IllegalStateException("Unexpected value: " + getSelectRow().toLowerCase());
         }
 
         //        Update Value --> Each Iteration, Once
@@ -107,7 +107,6 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements LoopI
                     }
                 }
                 break;
-
             case "once":
                 if(updateOnceFlag){
                     for (int a = 0; a < variables.length && a < lineValues.length; a++) {
@@ -116,7 +115,6 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements LoopI
                     this.updateOnceFlag = false;
                 }
                 break;
-
             default:
                 LOGGER.error("Invalid selection on Update Value");
                 throw new JMeterStopThreadException("Invalid selection :" + getFilename() + " detected for Extended CSV DataSet:"
@@ -139,7 +137,6 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements LoopI
             String header = fileServer.reserveFile(fileName, getFileEncoding(), alias, true);
             try {
                 variables = CSVSaveService.csvSplitString(header, delimiter.charAt(0));
-                firstLineIsNames = true;
                 ignoreFirstLine = true;
                 trimVarNames(variables);
             } catch (IOException e) {
@@ -154,12 +151,12 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements LoopI
             fileServer.calculateRowCount(alias, getVariableNames().isEmpty() && isIgnoreFirstLine());
         }
         if(getSelectRow().equalsIgnoreCase("Unique")){
-            this.initBlockFeatures(fileServer, alias, context);
+            this.initBlockFeatures(context);
         }
         trimVarNames(variables);
     }
 
-    private void initBlockFeatures(FileServerExtended fileServer, String alias, JMeterContext context) {
+    private void initBlockFeatures(JMeterContext context) {
         String threadName = context.getThread().getThreadName();
         int blockSize;
 
@@ -272,7 +269,7 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements LoopI
         return getPropertyAsString(DELIMITER);
     }
     public void setDelimiter(String delimiter) {
-        String delim = null;
+        String delim;
         if ("\\t".equals(delimiter)) {
             delim = "\t";
         } else if (delimiter.isEmpty()){

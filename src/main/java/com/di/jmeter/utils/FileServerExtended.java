@@ -19,10 +19,7 @@ package com.di.jmeter.utils;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayDeque;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Stream;
 
@@ -696,6 +693,107 @@ public class FileServerExtended {
         return line;
     }
 
+    private enum ParserState {
+        INITIAL,
+        PLAIN,
+        QUOTED,
+        EMBEDDEDQUOTE
+    }
+    private static final char QUOTING_CHAR = '"';
+
+    private static boolean isDelimOrEOL(char delim, int ch) {
+        return ch == delim || ch == '\n' || ch == '\r';
+    }
+
+    /**
+     * Reads from file and splits input into strings according to the delimiter,
+     * taking note of quoted strings.
+     * <p>
+     * Handles DOS (CRLF), Unix (LF), and Mac (CR) line-endings equally.
+     * <p>
+     * A blank line - or a quoted blank line - both return an array containing
+     * a single empty String.
+     * @param line String
+     * @param delimiter delimiter (e.g. comma)
+     * @return array of strings, will be empty if there is no data, i.e. if the input is at EOF.
+     * @throws IOException
+     *             also for unexpected quote characters
+     */
+    public String[] csvReadLine(String line, char delimiter) throws IOException {
+        int index = 0;
+        int length = line.length();
+        ParserState state = ParserState.INITIAL;
+        List<String> list = new ArrayList<>();
+        CharArrayWriter baos = new CharArrayWriter(200);
+        boolean push = false;
+        while (index < length) {
+            push = false;
+            int ch = line.charAt(index++);
+            switch (state) {
+                case INITIAL:
+                    if (ch == QUOTING_CHAR) {
+                        state = ParserState.QUOTED;
+                    } else if (isDelimOrEOL(delimiter, ch)) {
+                        push = true;
+                    } else {
+                        baos.write(ch);
+                        state = ParserState.PLAIN;
+                    }
+                    break;
+                case PLAIN:
+                    if (ch == QUOTING_CHAR) {
+                        baos.write(ch);
+                        throw new IOException("Cannot have quote-char in plain field:[" + baos.toString() + "]");
+                    } else if (isDelimOrEOL(delimiter, ch)) {
+                        push = true;
+                        state = ParserState.INITIAL;
+                    } else {
+                        baos.write(ch);
+                    }
+                    break;
+                case QUOTED:
+                    if (ch == QUOTING_CHAR) {
+                        state = ParserState.EMBEDDEDQUOTE;
+                    } else {
+                        baos.write(ch);
+                    }
+                    break;
+                case EMBEDDEDQUOTE:
+                    if (ch == QUOTING_CHAR) {
+                        baos.write(QUOTING_CHAR); // doubled quote => quote
+                        state = ParserState.QUOTED;
+                    } else if (isDelimOrEOL(delimiter, ch)) {
+                        push = true;
+                        state = ParserState.INITIAL;
+                    } else {
+                        baos.write(QUOTING_CHAR);
+                        throw new IOException("Cannot have single quote-char in quoted field:[" + baos.toString() + "]");
+                    }
+                    break;
+                default:
+                    throw new IllegalStateException("Unexpected state " + state);
+            }
+            if (push) {
+                if (ch == '\r' && index < length && line.charAt(index) == '\n') {
+                    index++; // skip the '\n' character after '\r'
+                }
+                String s = baos.toString();
+                list.add(s);
+                baos.reset();
+            }
+        }
+        if (state == ParserState.QUOTED) {
+            throw new IOException("Missing trailing quote-char in quoted field:[\"" + baos.toString() + "\"]");
+        }
+        // Do we have some data, or a trailing empty field?
+        if (baos.size() > 0 // we have some data
+                || push // we've started a field
+                || state == ParserState.EMBEDDEDQUOTE // Just seen ""
+        ) {
+            list.add(baos.toString());
+        }
+        return list.toArray(new String[list.size()]);
+    }
 
     public static int getRowCount() {
         return rowCount;
