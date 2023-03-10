@@ -2,12 +2,12 @@
 
 ## Introduction
 
-This plugins provide additional features over the CSV data set config element for Jmeter. This also provides additional parameterization feature.
+This plugin provides additional feature over the JMeter's default **CSV data set config element**. This also provides additional parameterization feature.
 
 This will enable **LoadRunner** users, the privilege of having similar parameter advantage in **Apache JMeter**
 
 ## Preview
-![Extended CSV Dataset Config](/images/ExtendedCSV.png)
+![Extended CSV Dataset Config](/images/ExtendedCsvDataSetConfig.png)
 
 ## Required Components
 
@@ -21,13 +21,24 @@ This will enable **LoadRunner** users, the privilege of having similar parameter
 
 ## Installation Instructions
 
-* Download the source code from the Github.
+* Download the source code from the GitHub.
 * Just do a mvn clean install (M2 is required)
-* Jar will be generated under the target directory (di-extended-csv-1.0.jar).
+* Jar will be generated under the target directory (di-extended-csv-xx.jar).
 * Copy the Jar to \<Jmeter Installed Directory\>/lib/ext/
+
+## What's new ?
+
+* Improved new GUI
+* Added feature to create new file
+* Added feature to edit csv file with default text editor
+* Fixed quoted data issue
+* Fixed relative path issue
+* Support for large csv (Moved out of In-memory read)
 
 
 ## Options
+
+✨ This version eliminates remembering the below combination table ✨
 
 This allows reading of CSV data as follows
 
@@ -37,23 +48,24 @@ This allows reading of CSV data as follows
 
 The below table is the combinations allowed while using this plugin 
 
-|Select Row|Update value| Out of Values |Allocate Block Size|
-| ------ | ------ |------| ------ |
-|Sequential|Each Iteration| Continue Cyclic|NA|
-|Sequential|Each Iteration| Abort Thread|NA|
-|Sequential|Each Iteration| Continue with Last value|NA|
-|Sequential|Once| NA   |NA|
-|Random|Each Iteration| NA   |NA|
-|Random|Once| NA   |NA|
-|Unique|Each Iteration| Continue with Last Value |Enabled|
-|Unique|Each Iteration| Continue Cyclic |Enabled|
-|Unique|Each Iteration| Abort Thread |Enabled|
-|Unique|Once| NA   |NA|
+| Select Row | Update value   | Out of Values            | Allocate Block Size |
+|------------|----------------|--------------------------|---------------------|
+| Sequential | Each Iteration | Continue Cyclic          | NA                  |
+| Sequential | Each Iteration | Abort Thread             | NA                  |
+| Sequential | Each Iteration | Continue with Last value | NA                  |
+| Sequential | Once           | NA                       | NA                  |
+| Random     | Each Iteration | NA                       | NA                  |
+| Random     | Once           | NA                       | NA                  |
+| Unique     | Each Iteration | Continue with Last Value | Enabled             |
+| Unique     | Each Iteration | Continue Cyclic          | Enabled             |
+| Unique     | Each Iteration | Abort Thread             | Enabled             |
+| Unique     | Once           | NA                       | NA                  |
 
 
 ## Future Release in pipeline
 
- * Create GUI class for UI instead of BeanInfo 
+ * Visualizing csv data in data table
+ * Simulate Parameter window
  
 
 ## References
@@ -62,8 +74,10 @@ The below table is the combinations allowed while using this plugin
 
 
 ## 💲 Support Me
-[<a href="https://www.buymeacoffee.com/rollno748" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" height="45px" width="162px" alt="Buy Me A Coffee"></a>](https://www.buymeacoffee.com/rollno748)
+<!-- [<a href="https://www.buymeacoffee.com/rollno748" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" height="45px" width="162px" alt="Buy Me A Coffee"></a>](https://www.buymeacoffee.com/rollno748) -->
+If this project help you reduce time to develop, you can give me a cup of coffee :)
 
+[![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://ko-fi.com/rollno748)
 
 Please rate a star(:star2:) - If you like it.
 
