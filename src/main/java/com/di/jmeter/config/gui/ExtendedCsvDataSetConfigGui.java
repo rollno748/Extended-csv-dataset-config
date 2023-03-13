@@ -197,9 +197,9 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
         ooValueCBox.setEnabled(true);
         allocateConfigPanel.setEnabled(false);
         allocateBlockConfigBoxPanel.setEnabled(false);
+        autoAllocateRButton.setSelected(true);
         autoAllocateRButton.setEnabled(false);
         autoAllocateLabel.setEnabled(false);
-        autoAllocateRButton.setSelected(false);
         allocateRButton.setEnabled(false);
         allocateLabel1.setEnabled(false);
         allocateLabel2.setEnabled(false);
