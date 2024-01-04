@@ -282,7 +282,7 @@ public class ExtendedCsvDataSetConfigGui extends AbstractConfigGui {
             try {
                 File file = new File(filenameField.getText());
                 Desktop desktop = Desktop.getDesktop();
-                if(filenameField.getText().equals("") || filenameField.getText().isEmpty()){
+                if(filenameField.getText().isEmpty() || filenameField.getText().isEmpty()){
                     throw new FileNotFoundException();
                 }
                 if(!file.exists()){

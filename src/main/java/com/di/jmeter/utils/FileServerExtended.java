@@ -63,9 +63,9 @@ public class FileServerExtended {
 
     private File base;
     private static int rowCount;
-    private static ThreadLocal<Integer> endPos =  new ThreadLocal<>();
-    private static ThreadLocal<Integer> startPos =  new ThreadLocal<>();
-    private static ThreadLocal<Integer> readPos =  new ThreadLocal<>();
+    private static final ThreadLocal<Integer> endPos =  new ThreadLocal<>();
+    private static final ThreadLocal<Integer> startPos =  new ThreadLocal<>();
+    private static final ThreadLocal<Integer> readPos =  new ThreadLocal<>();
     private final Map<String, FileEntry> files = new HashMap<>();
     private static final FileServerExtended server = new FileServerExtended();
 
@@ -591,7 +591,8 @@ public class FileServerExtended {
         try (BufferedReader br = new BufferedReader(new FileReader(String.valueOf(fileEntry.file.toPath())))) {
             count = (int) br.lines().count();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error(e.toString());
+
         }
         this.setRowCount(ignoreFirstLine ? count-1 : count );
     }
