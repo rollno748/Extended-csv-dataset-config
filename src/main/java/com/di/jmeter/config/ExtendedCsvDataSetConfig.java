@@ -105,6 +105,10 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements LoopI
                     for (int a = 0; a < variables.length && a < lineValues.length; a++) {
                         jMeterVariables.put(variables[a], lineValues[a]);
                     }
+                }else {
+                    for (String variable : variables) {
+                        jMeterVariables.put(variable, null);
+                    }
                 }
                 break;
             case "once":
