@@ -13,6 +13,7 @@ import org.apache.jmeter.testelement.TestStateListener;
 import org.apache.jmeter.threads.JMeterContext;
 import org.apache.jmeter.threads.JMeterContextService;
 import org.apache.jmeter.threads.JMeterVariables;
+import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.util.JMeterStopThreadException;
 import org.apache.jorphan.util.JOrphanUtils;
 import org.slf4j.Logger;
@@ -23,6 +24,8 @@ import java.io.IOException;
 public class ExtendedCsvDataSetConfig extends ConfigTestElement implements LoopIterationListener, TestStateListener, NoConfigMerge {
     private static final long serialVersionUID = 767792680142202807L;
     private static final Logger LOGGER = LoggerFactory.getLogger(ExtendedCsvDataSetConfig.class);
+
+    private static final String EOFVALUE = JMeterUtils.getPropDefault("csvdataset.eofstring", "<EOF>");
     public static final String FILENAME = "filename";
     public static final String FILE_ENCODING = "fileEncoding";
     public static final String VARIABLE_NAMES = "variableNames";
@@ -101,13 +104,12 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements LoopI
         //        Update Value --> Each Iteration, Once
         switch (getPropertyAsString(UPDATE_VALUE).toLowerCase()) {
             case "each iteration":
-                if(lineValues.length > 0){
+                if (lineValues.length == 0) {
+                    throw new JMeterStopThreadException("End of file:"+ getFilename()+" detected for CSV DataSet:"
+                            +getName()+" configured to Select Row Parameter :" + getUpdateValue());
+                } else {
                     for (int a = 0; a < variables.length && a < lineValues.length; a++) {
                         jMeterVariables.put(variables[a], lineValues[a]);
-                    }
-                }else {
-                    for (String variable : variables) {
-                        jMeterVariables.put(variable, null);
                     }
                 }
                 break;
