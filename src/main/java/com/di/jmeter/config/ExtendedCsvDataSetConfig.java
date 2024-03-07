@@ -200,10 +200,14 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements LoopI
         }
     }
 
+    private boolean isServerMode() {
+        return System.getProperty("server_port") != null;
+    }
+
     @Override
     public void testStarted() {
         FileServerExtended fileServer = FileServerExtended.getFileServer();
-        if(JMeter.isNonGUI()){
+        if(JMeter.isNonGUI() || isServerMode()){
             String baseDirectory = org.apache.jmeter.services.FileServer.getFileServer().getBaseDir();
             fileServer.setBasedir(baseDirectory);
         }else {
