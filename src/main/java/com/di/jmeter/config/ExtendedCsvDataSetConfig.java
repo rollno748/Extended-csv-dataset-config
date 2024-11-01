@@ -207,10 +207,11 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements LoopI
     @Override
     public void testStarted() {
         FileServerExtended fileServer = FileServerExtended.getFileServer();
-        if(JMeter.isNonGUI() || isServerMode()){
-            String baseDirectory = org.apache.jmeter.services.FileServer.getFileServer().getBaseDir();
+        String baseDirectory = org.apache.jmeter.services.FileServer.getFileServer().getBaseDir();
+
+        if(JMeter.isNonGUI() || isServerMode() || GuiPackage.getInstance() == null){
             fileServer.setBasedir(baseDirectory);
-        }else {
+        } else {
             String testPlanFile = GuiPackage.getInstance().getTestPlanFile();
             fileServer.setBasedir(testPlanFile);
         }

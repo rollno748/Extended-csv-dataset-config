@@ -2,7 +2,8 @@ package com.di.jmeter.utils;
 
 import org.apache.jmeter.gui.GuiPackage;
 
-import javax.swing.*;
+import javax.swing.JFileChooser;
+import javax.swing.JTextField;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 

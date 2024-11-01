@@ -16,13 +16,6 @@
  */
 package com.di.jmeter.utils;
 
-import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.*;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.stream.Stream;
-
 import org.apache.commons.io.input.BOMInputStream;
 import org.apache.jmeter.gui.JMeterFileFilter;
 import org.apache.jmeter.save.CSVSaveService;
@@ -31,6 +24,13 @@ import org.apache.jorphan.util.JMeterStopThreadException;
 import org.apache.jorphan.util.JOrphanUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Stream;
 
 /**
  * This class provides thread-safe access to files, and to
