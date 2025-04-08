@@ -722,6 +722,8 @@ public class FileServerExtended {
      */
     public String[] csvReadLine(String line, char delimiter) throws IOException {
         int index = 0;
+        if (line == null || line.isEmpty())
+            return new String[0];
         int length = line.length();
         ParserState state = ParserState.INITIAL;
         List<String> list = new ArrayList<>();
