@@ -62,6 +62,11 @@ public class FileServerExtended {
                     BASE_PREFIX_DEFAULT);
 
     private File base;
+    /**
+     * @deprecated Use per-file row count via {@link #getRowCount(String)} instead.
+     * Retained only for backward compatibility with callers that do not pass an alias.
+     */
+    @Deprecated
     private static int rowCount;
     private static final ThreadLocal<Integer> endPos =  new ThreadLocal<>();
     private static final ThreadLocal<Integer> startPos =  new ThreadLocal<>();
@@ -534,6 +539,7 @@ public class FileServerExtended {
         private final File file;
         private Closeable inputOutputObject;
         private final String charSetEncoding;
+        private int rowCount;
 
         FileEntry(File f, Closeable o, String e) {
             file = f;
@@ -594,7 +600,11 @@ public class FileServerExtended {
             log.error(e.toString());
 
         }
-        this.setRowCount(ignoreFirstLine ? count-1 : count );
+        int effectiveCount = ignoreFirstLine ? count - 1 : count;
+        // Store per-file row count
+        fileEntry.rowCount = effectiveCount;
+        // Also update global static for backward compatibility
+        this.setRowCount(effectiveCount);
     }
 
     /**
@@ -628,7 +638,8 @@ public class FileServerExtended {
     public synchronized String readRandom(String filename, boolean ignoreFirstLine) throws IOException {
         Random rand = new Random();
         int startPos = ignoreFirstLine ? 1 : 0;
-        int randPos = rand.nextInt(((rowCount -1) - startPos) + 1) + startPos;
+        int fileRowCount = getRowCount(filename);
+        int randPos = rand.nextInt(((fileRowCount - 1) - startPos) + 1) + startPos;
         return readIndexed(filename, randPos);
     }
 
@@ -646,7 +657,8 @@ public class FileServerExtended {
      */
     public synchronized String readUnique(String filename, boolean ignoreFirstLine, String ooValue, int currPos, int startPos, int endPos) throws IOException {
         String line = null;
-        if(currPos < getRowCount()){
+        int fileRowCount = getRowCount(filename);
+        if(currPos < fileRowCount){
             line = readIndexed(filename, currPos);
         }
         if(ooValue.equalsIgnoreCase("Continue Cyclic")){
@@ -799,6 +811,22 @@ public class FileServerExtended {
     public static int getRowCount() {
         return rowCount;
     }
+
+    /**
+     * Get the row count for a specific file by its alias.
+     * Falls back to the global static rowCount if the file is not found.
+     *
+     * @param alias the file alias used when reserving the file
+     * @return the row count for that specific file
+     */
+    public int getRowCount(String alias) {
+        FileEntry fileEntry = files.get(alias);
+        if (fileEntry != null && fileEntry.rowCount > 0) {
+            return fileEntry.rowCount;
+        }
+        return rowCount;
+    }
+
     public static void setRowCount(int count) {
         FileServerExtended.rowCount = count;
     }
