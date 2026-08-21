@@ -10,8 +10,8 @@ import org.apache.jmeter.engine.util.NoConfigMerge;
 import org.apache.jmeter.gui.GuiPackage;
 import org.apache.jmeter.save.CSVSaveService;
 import org.apache.jmeter.testelement.TestStateListener;
+import org.apache.jmeter.testelement.ThreadListener;
 import org.apache.jmeter.threads.JMeterContext;
-import org.apache.jmeter.threads.JMeterContextService;
 import org.apache.jmeter.threads.JMeterVariables;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.util.JMeterStopThreadException;
@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
-public class ExtendedCsvDataSetConfig extends ConfigTestElement implements LoopIterationListener, TestStateListener, NoConfigMerge {
+public class ExtendedCsvDataSetConfig extends ConfigTestElement implements LoopIterationListener, TestStateListener, ThreadListener, NoConfigMerge {
     private static final long serialVersionUID = 767792680142202807L;
     private static final Logger LOGGER = LoggerFactory.getLogger(ExtendedCsvDataSetConfig.class);
 
@@ -44,77 +44,106 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements LoopI
     private boolean recycleFile;
     private boolean ignoreFirstLine;
     private boolean updateOnceFlag = true;
+    // true when this thread is the sole owner of `alias` (i.e. no other thread can be using it),
+    // so its file entry can be released as soon as this thread finishes. Set by setAlias().
+    private boolean perThreadAlias;
+    // Property values cached by initVars() to avoid property-map lookups on every iteration.
+    // Properties are effectively immutable after test start, so this cache stays valid.
+    private String selectRow;
+    private String updateValue;
+    private String ooValue;
+    private String delimiter;
+    private boolean quotedData;
 
     @Override
     public void iterationStart(LoopIterationEvent iterationEvent) {
         final JMeterContext context = getThreadContext();
-        final String delimiter = this.getDelimiter();
         FileServerExtended fileServer = FileServerExtended.getFileServer();
         String[] lineValues = {};
         if (variables == null) {
-            FileServerExtended.setReadPos(0);
-            initVars(fileServer, context, delimiter);
+            initVars(fileServer, context);
         }
         JMeterVariables jMeterVariables = context.getVariables();
         // Select Row -> Sequential, Random, Unique
-        switch(getSelectRow().toLowerCase()){
+        // A null line is a legitimate "no data" signal (e.g. Sequential at EOF without recycle,
+        // or Unique past the end of its allocated block); handled below via the ooValue branch.
+        // Any IOException here is a genuine I/O failure and must not be treated the same way -
+        // it is reported and stops the thread instead of being silently ignored.
+        String line;
+        switch (selectRow) {
             case "sequential":
-                try{
-                    String line = fileServer.readLine(alias, recycleFile, ignoreFirstLine);
-                    LOGGER.debug("Sequential line fetched : {}", line);
-                    if(isQuotedData()){
-                        lineValues = fileServer.csvReadLine(line, delimiter.charAt(0));
-                    }else{
-                        lineValues = JOrphanUtils.split(line, delimiter, false);
-                    }
-                }catch(IOException e){
-                    LOGGER.error(e.toString());
+                try {
+                    line = fileServer.readLine(alias, recycleFile, ignoreFirstLine);
+                } catch (IOException e) {
+                    throw new JMeterStopThreadException("I/O error reading file:" + getFilename()
+                            + " for Extended CSV DataSet:" + getName(), e);
                 }
                 break;
             case "random":
-                try{
-                    String line = fileServer.readRandom(alias, ignoreFirstLine);
-                    LOGGER.debug("Random line fetched : {}", line);
-                    if(isQuotedData()){
-                        lineValues = fileServer.csvReadLine(line, delimiter.charAt(0));
-                    }else{
-                        lineValues = JOrphanUtils.split(line, delimiter, false);
-                    }
-                }catch(IOException e){
-                    LOGGER.error(e.toString());
+                try {
+                    line = fileServer.readRandom(alias, ignoreFirstLine);
+                } catch (IOException e) {
+                    throw new JMeterStopThreadException("I/O error reading file:" + getFilename()
+                            + " for Extended CSV DataSet:" + getName(), e);
                 }
                 break;
             case "unique":
-                try{
-                    String line = fileServer.readUnique(alias, ignoreFirstLine, getOoValue(), FileServerExtended.getReadPos(), FileServerExtended.getStartPos(), FileServerExtended.getEndPos());
-                    LOGGER.debug("Unique line fetched : {}", line);
-                    if(isQuotedData()){
-                        lineValues = fileServer.csvReadLine(line, delimiter.charAt(0));
-                    }else{
-                        lineValues = JOrphanUtils.split(line, delimiter, false);
-                    }
-                }catch(IOException e){
-                    LOGGER.error(e.toString());
+                try {
+                    line = fileServer.readUnique(alias, ignoreFirstLine, ooValue,
+                            FileServerExtended.getReadPos(alias), FileServerExtended.getStartPos(alias), FileServerExtended.getEndPos(alias));
+                } catch (IOException e) {
+                    throw new JMeterStopThreadException("I/O error reading file:" + getFilename()
+                            + " for Extended CSV DataSet:" + getName(), e);
                 }
                 break;
             default:
-                throw new IllegalStateException("Unexpected value: " + getSelectRow().toLowerCase());
+                throw new IllegalStateException("Unexpected value: " + selectRow);
+        }
+
+        if (line == null) {
+            // Legitimate "out of values" signal. Honor the configured ooValue rather than
+            // falling through and letting the update-value switch draw a misleading "End of
+            // file" conclusion for every case:
+            //   - Continue with Last Value: skip variable assignment so previously-set values
+            //     remain visible to downstream samplers. (Sequential mode had no support for
+            //     this at all before - it silently behaved like Abort Thread.)
+            //   - Abort Thread: stop this thread cleanly with a clear message, uniformly for
+            //     both "Each Iteration" and "Once" update modes. (Sequential + Once + Abort
+            //     Thread previously silently no-oped instead of aborting.)
+            //   - Continue Cyclic: never reaches here (Sequential's readLine recycles, and
+            //     Unique's readUnique wraps position internally).
+            if (ooValue != null && ooValue.equalsIgnoreCase("Continue with Last Value")) {
+                return;
+            }
+            if (ooValue != null && ooValue.equalsIgnoreCase("Abort Thread")) {
+                throw new JMeterStopThreadException("End of file:" + getFilename() + " for CSV DataSet:"
+                        + getName() + " configured with 'Abort Thread' on out-of-values");
+            }
+            // Undefined ooValue - fall through to legacy update-value handling below.
+        } else {
+            LOGGER.debug("{} line fetched : {}", selectRow, line);
+            try {
+                lineValues = quotedData ? fileServer.csvReadLine(line, delimiter.charAt(0))
+                        : JOrphanUtils.split(line, delimiter, false);
+            } catch (IOException e) {
+                throw new JMeterStopThreadException("Could not parse CSV line from file:" + getFilename()
+                        + " for Extended CSV DataSet:" + getName(), e);
+            }
         }
 
         //        Update Value --> Each Iteration, Once
-        switch (getPropertyAsString(UPDATE_VALUE).toLowerCase()) {
+        switch (updateValue) {
             case "each iteration":
                 if (lineValues.length == 0) {
-                    throw new JMeterStopThreadException("End of file:"+ getFilename()+" detected for CSV DataSet:"
-                            +getName()+" configured to Select Row Parameter :" + getUpdateValue());
-                } else {
-                    for (int a = 0; a < variables.length && a < lineValues.length; a++) {
-                        jMeterVariables.put(variables[a], lineValues[a]);
-                    }
+                    throw new JMeterStopThreadException("End of file:" + getFilename() + " detected for CSV DataSet:"
+                            + getName() + " configured to Select Row Parameter :" + updateValue);
+                }
+                for (int a = 0; a < variables.length && a < lineValues.length; a++) {
+                    jMeterVariables.put(variables[a], lineValues[a]);
                 }
                 break;
             case "once":
-                if(updateOnceFlag){
+                if (updateOnceFlag) {
                     for (int a = 0; a < variables.length && a < lineValues.length; a++) {
                         jMeterVariables.put(variables[a], lineValues[a]);
                     }
@@ -124,17 +153,26 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements LoopI
             default:
                 LOGGER.error("Invalid selection on Update Value");
                 throw new JMeterStopThreadException("Invalid selection :" + getFilename() + " detected for Extended CSV DataSet:"
-                        + getName() + " configured to Select Row Parameter :" + getUpdateValue());
+                        + getName() + " configured to Select Row Parameter :" + updateValue);
         }
     }
 
-    private void initVars(FileServerExtended fileServer, JMeterContext context, String delimiter) {
+    private void initVars(FileServerExtended fileServer, JMeterContext context) {
         String fileName = getFilename().trim();
         final String varNames = getVariableNames();
+        // Cache property values once per thread (per-thread clone of this element) - they don't
+        // change during a run, and repeatedly hitting the property map on every iteration adds
+        // measurable overhead under high sampler throughput.
+        this.selectRow = getSelectRow() == null ? "" : getSelectRow().toLowerCase();
+        this.updateValue = getPropertyAsString(UPDATE_VALUE).toLowerCase();
+        this.ooValue = getOoValue();
+        this.delimiter = getDelimiter();
+        this.quotedData = isQuotedData();
         setAlias(context, fileName);
+        FileServerExtended.setReadPos(alias, 0);
         this.ignoreFirstLine = this.isIgnoreFirstLine();
 
-        if(getOoValue() != null && getOoValue().equalsIgnoreCase("Continue Cyclic")){
+        if(ooValue != null && ooValue.equalsIgnoreCase("Continue Cyclic")){
             this.recycleFile = true;
         }
         if (StringUtils.isEmpty(varNames)) {
@@ -151,52 +189,143 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements LoopI
             variables = JOrphanUtils.split(varNames, ",");
         }
 
-        if(!getSelectRow().equalsIgnoreCase("Sequential")){
-            fileServer.calculateRowCount(alias, getVariableNames().isEmpty() && isIgnoreFirstLine());
+        if(!"sequential".equals(selectRow)){
+            // Use the *effective* ignoreFirstLine (which may have been overridden to true above
+            // when varNames was empty and the header was auto-detected), so the row count that
+            // read-time bounds checks rely on matches the read-time startOffset (avoids random
+            // positions past the end of the offset index for auto-detected-header files where
+            // the user left "Consider first line as Variable Name" set to false).
+            try {
+                fileServer.calculateRowCount(alias, this.ignoreFirstLine);
+            } catch (IOException e) {
+                throw new JMeterStopThreadException("Could not build line index for file:" + fileName
+                        + " in Extended CSV DataSet:" + getName(), e);
+            }
         }
-        if(getSelectRow().equalsIgnoreCase("Unique")){
+        if("unique".equals(selectRow)){
             this.initBlockFeatures(context);
         }
         trimVarNames(variables);
     }
 
     private void initBlockFeatures(JMeterContext context) {
-        String threadName = context.getThread().getThreadName();
-        int blockSize;
+        final int rowCount = FileServerExtended.getFileServer().getRowCount(alias);
+        final int headOffset = this.ignoreFirstLine ? 1 : 0;
+        // Stable, JMeter-assigned 0-based index within this thread group (no thread-name string
+        // parsing — that was fragile against custom thread-group names, and NumberFormatException
+        // would abort the test at start-up if the name didn't end in a number).
+        final int threadNum = context.getThreadNum();
 
-        if(isAutoAllocate()){
-            blockSize = FileServerExtended.getRowCount() / JMeterContextService.getTotalThreads();
-        }else{
-            blockSize = Integer.parseInt(getBlockSize());
-            if(blockSize < 1){
-                throw new JMeterStopThreadException("Block Size Allocation Exception :" + getBlockSize() + " Please Ensure the block size is greater than 0"
+        int startPos;
+        int endPos;
+
+        if (isAutoAllocate()) {
+            // Use the CONFIGURED Number of Threads on this thread group (static per JMX) instead
+            // of JMeterContextService.getTotalThreads() (which reflects the live count during
+            // ramp-up and would give different block boundaries to threads that initialise at
+            // different points, producing overlapping or gapped blocks).
+            int numThreadsInGroup = context.getThreadGroup().getNumThreads();
+            if (numThreadsInGroup <= 0) {
+                throw new JMeterStopThreadException("Auto-allocate Unique mode requires the thread group's configured Number of Threads to be > 0 (got "
+                        + numThreadsInGroup + ") for file:" + getFilename());
+            }
+            if (rowCount <= 0) {
+                throw new JMeterStopThreadException("Auto-allocate Unique mode requires a non-empty data file, but file:"
+                        + getFilename() + " has no data rows.");
+            }
+            if (threadNum >= rowCount) {
+                // More threads than data rows: this thread has no block. Fail fast with a clear
+                // message instead of producing an inverted/empty block that would either abort
+                // cryptically on the first iteration or loop reading nothing.
+                throw new JMeterStopThreadException("Auto-allocate Unique mode: thread " + threadNum
+                        + " has no rows allocated because the thread group's configured Number of Threads ("
+                        + numThreadsInGroup + ") exceeds the number of data rows (" + rowCount
+                        + ") in file:" + getFilename());
+            }
+            int baseBlockSize = rowCount / numThreadsInGroup;
+            int extras = rowCount % numThreadsInGroup;
+            // Give the first `extras` threads one extra row each so no rows are dropped by
+            // integer-division truncation.
+            startPos = threadNum * baseBlockSize + Math.min(threadNum, extras);
+            endPos = startPos + baseBlockSize + (threadNum < extras ? 1 : 0) - 1;
+        } else {
+            int blockSize;
+            try {
+                blockSize = Integer.parseInt(getBlockSize());
+            } catch (NumberFormatException e) {
+                throw new JMeterStopThreadException("Block Size must be a positive integer, got '"
+                        + getBlockSize() + "' for file:" + getFilename(), e);
+            }
+            if (blockSize < 1) {
+                throw new JMeterStopThreadException("Block Size Allocation Exception :" + getBlockSize()
+                        + " Please Ensure the block size is greater than 0"
                         + " Or select auto allocate feature, which is currently set to : " + isAutoAllocate());
             }
+            startPos = threadNum * blockSize;
+            if (startPos >= rowCount) {
+                throw new JMeterStopThreadException("Manual-allocate Unique mode: thread " + threadNum
+                        + " has no rows because block-size (" + blockSize
+                        + ") multiplied by the thread index places the block past the end of file:"
+                        + getFilename() + " (which has " + rowCount + " data rows).");
+            }
+            endPos = startPos + blockSize - 1;
         }
-        //Set Start and end position to block
-        FileServerExtended.setReadPosition(threadName, blockSize, isIgnoreFirstLine());
-        if(FileServerExtended.getReadPos() == 0){
-            FileServerExtended.setReadPos(FileServerExtended.getStartPos());
+
+        // Shift the whole block past the header row when we're skipping it so the positions
+        // match the absolute line indices used by readIndexed().
+        startPos += headOffset;
+        endPos += headOffset;
+
+        FileServerExtended.setStartPos(alias, startPos);
+        FileServerExtended.setEndPos(alias, endPos);
+        if (FileServerExtended.getReadPos(alias) == 0) {
+            FileServerExtended.setReadPos(alias, startPos);
         }
     }
 
     private void setAlias(final JMeterContext context, String alias) {
-        switch (getShareMode()) {
-            case "All threads":
-                this.alias = alias;
-                break;
-            case "Current thread group":
-                this.alias = alias + "@" + System.identityHashCode(context.getThreadGroup());
-                break;
-            case "Current thread":
-                this.alias = alias + "@" + System.identityHashCode(context.getThread());
-                break;
-            default:
-                this.alias = alias + "@" + getShareMode();
-                break;
-        }
-        if(getSelectRow().equalsIgnoreCase("Sequential")){
+        // Case-insensitive so hand-edited JMX with different casing still dispatches correctly
+        // (Java switch-on-String is case-sensitive, so we use equalsIgnoreCase instead).
+        String mode = getShareMode() != null ? getShareMode().trim() : "";
+        if ("All threads".equalsIgnoreCase(mode)) {
+            // All threads share the same file entry, taking turns via the entry's per-file lock.
+            // This is the classic "partition a file across concurrent threads" pattern - each
+            // thread's readLine returns the next line collectively.
+            this.alias = alias;
+            this.perThreadAlias = false;
+        } else if ("Current thread group".equalsIgnoreCase(mode)) {
+            this.alias = alias + "@" + System.identityHashCode(context.getThreadGroup());
+            this.perThreadAlias = false;
+        } else if ("Current thread".equalsIgnoreCase(mode)) {
             this.alias = alias + "@" + System.identityHashCode(context.getThread());
+            this.perThreadAlias = true;
+        } else {
+            // Unknown mode (older JMX, hand-edited value) - preserve the historical fallback
+            // of embedding the raw mode string in the alias so different unknown-mode values
+            // still don't collide with each other.
+            this.alias = alias + "@" + mode;
+            this.perThreadAlias = false;
+        }
+        // The Sequential row-selection mode used to force per-thread aliasing here regardless
+        // of the user's Sharing Mode choice, silently overriding "All threads"/"Current thread
+        // group" and breaking the classic partition-across-threads pattern. It's now honored.
+    }
+
+    @Override
+    public void threadStarted() {
+        // Initialization happens lazily on the first iteration via initVars().
+    }
+
+    @Override
+    public void threadFinished() {
+        // Only release the file entry when this thread is its sole owner - for shared aliases
+        // ("All threads"/"Current thread group") other threads may still be reading it.
+        if (perThreadAlias && alias != null) {
+            try {
+                FileServerExtended.getFileServer().releaseFile(alias);
+            } catch (IOException e) {
+                LOGGER.error("Exception occurred while releasing file for alias {} : {}", alias, e.toString());
+            }
         }
     }
 
@@ -338,6 +467,6 @@ public class ExtendedCsvDataSetConfig extends ConfigTestElement implements LoopI
         setProperty(BLOCK_SIZE, blockSize);
     }
     public String printAllProperties() {
-        return String.format("Filename: %s\n,FileEncoding: %s\n VariableName: %s\n IgnoreFirstLine: %s\n Delimiter: %s\n IsQuotedData: %s\n SelectRow: %s\n UpdateValue: %s\n OOValue: %s\n AutoAllocate: %s\n Allocate: %s\n BlockSize: %s\n",getFilename(),getFileEncoding(),getVariableNames(),isIgnoreFirstLine(),getDelimiter(),isQuotedData(),getSelectRow(),getUpdateValue(),getOoValue(),isAllocate(),isAutoAllocate(),getBlockSize());
+        return String.format("Filename: %s\n FileEncoding: %s\n VariableName: %s\n IgnoreFirstLine: %s\n Delimiter: %s\n IsQuotedData: %s\n SelectRow: %s\n UpdateValue: %s\n OOValue: %s\n AutoAllocate: %s\n Allocate: %s\n BlockSize: %s\n",getFilename(),getFileEncoding(),getVariableNames(),isIgnoreFirstLine(),getDelimiter(),isQuotedData(),getSelectRow(),getUpdateValue(),getOoValue(),isAutoAllocate(),isAllocate(),getBlockSize());
     }
 }

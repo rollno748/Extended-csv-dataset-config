@@ -26,11 +26,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.stream.Stream;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * This class provides thread-safe access to files, and to
@@ -61,12 +62,16 @@ public class FileServerExtended {
             JMeterUtils.getPropDefault("jmeter.save.saveservice.base_prefix", // $NON-NLS-1$
                     BASE_PREFIX_DEFAULT);
 
-    private File base;
-    private static int rowCount;
-    private static final ThreadLocal<Integer> endPos =  new ThreadLocal<>();
-    private static final ThreadLocal<Integer> startPos =  new ThreadLocal<>();
-    private static final ThreadLocal<Integer> readPos =  new ThreadLocal<>();
-    private final Map<String, FileEntry> files = new HashMap<>();
+    // volatile: previously only ever read/written while holding the (now removed) whole-instance
+    // lock on every file operation; per-file locking no longer provides that incidental protection.
+    private volatile File base;
+    // Positions are tracked per alias (not just per thread) so that a single thread using
+    // more than one CSV Data Set Config (each with its own alias) does not have one dataset's
+    // block/read position overwrite another's.
+    private static final ThreadLocal<Map<String, Positions>> positionsByAlias = ThreadLocal.withInitial(HashMap::new);
+    // ConcurrentHashMap so that reading/reserving one alias never blocks on activity for another,
+    // and reservation of a brand-new alias (computeIfAbsent) is atomic without a whole-map lock.
+    private final Map<String, FileEntry> files = new ConcurrentHashMap<>();
     private static final FileServerExtended server = new FileServerExtended();
 
     // volatile needed to ensure safe publication
@@ -243,33 +248,35 @@ public class FileServerExtended {
      * @return the header line; may be null
      * @throws IllegalArgumentException if header could not be read or filename is null or empty
      */
-    public synchronized String reserveFile(String filename, String charsetName, String alias, boolean hasHeader) {
+    public String reserveFile(String filename, String charsetName, String alias, boolean hasHeader) {
         if (filename == null || filename.isEmpty()){
             throw new IllegalArgumentException("Filename must not be null or empty");
         }
         if (alias == null){
             throw new IllegalArgumentException("Alias must not be null");
         }
-        FileEntry fileEntry = files.get(alias);
-        if (fileEntry == null) {
-            fileEntry = new FileEntry(resolveFileFromPath(filename), null, charsetName);
-            if (filename.equals(alias)){
+        // computeIfAbsent makes create-if-missing atomic per alias: concurrent threads reserving
+        // the SAME new alias cannot both create/insert a FileEntry, and threads reserving
+        // DIFFERENT aliases are not blocked on each other (no whole-map lock is held).
+        FileEntry fileEntry = files.computeIfAbsent(alias, key -> {
+            FileEntry newEntry = new FileEntry(resolveFileFromPath(filename), null, charsetName);
+            if (filename.equals(key)){
                 log.info("Stored: {}", filename);
             } else {
-                log.info("Stored: {} Alias: {}", filename, alias);
+                log.info("Stored: {} Alias: {}", filename, key);
             }
-            files.put(alias, fileEntry);
             if (hasHeader) {
                 try {
-                    fileEntry.headerLine = readLine(alias, false);
-                    if (fileEntry.headerLine == null) {
-                        fileEntry.exception = new EOFException("File is empty: " + fileEntry.file);
+                    newEntry.headerLine = readLineFromEntry(newEntry, false, false);
+                    if (newEntry.headerLine == null) {
+                        newEntry.exception = new EOFException("File is empty: " + newEntry.file);
                     }
                 } catch (IOException | IllegalArgumentException e) {
-                    fileEntry.exception = e;
+                    newEntry.exception = e;
                 }
             }
-        }
+            return newEntry;
+        });
         if (hasHeader && fileEntry.headerLine == null) {
             throw new IllegalArgumentException("Could not read file header line for file " + filename,
                     fileEntry.exception);
@@ -325,14 +332,26 @@ public class FileServerExtended {
      * @return String containing the next line in the file (null if EOF reached and not recycle)
      * @throws IOException when reading of the file fails, or the file was not reserved properly
      */
-    public synchronized String readLine(String filename, boolean recycle,
+    public String readLine(String filename, boolean recycle,
                                         boolean ignoreFirstLine) throws IOException {
         FileEntry fileEntry = files.get(filename);
-        if (fileEntry != null) {
+        if (fileEntry == null) {
+            throw new IOException("File never reserved: "+filename);
+        }
+        return readLineFromEntry(fileEntry, recycle, ignoreFirstLine);
+    }
+
+    /**
+     * Reads the next line directly from a {@link FileEntry}, locking only that entry so that
+     * concurrent reads of unrelated files/aliases are not blocked.
+     */
+    private String readLineFromEntry(FileEntry fileEntry, boolean recycle, boolean ignoreFirstLine) throws IOException {
+        fileEntry.lock.lock();
+        try {
             if (fileEntry.inputOutputObject == null) {
                 fileEntry.inputOutputObject = createBufferedReader(fileEntry);
             } else if (!(fileEntry.inputOutputObject instanceof Reader)) {
-                throw new IOException("File " + filename + " already in use");
+                throw new IOException("File " + fileEntry.file.getName() + " already in use");
             }
             BufferedReader reader = (BufferedReader) fileEntry.inputOutputObject;
             String line = reader.readLine();
@@ -347,8 +366,9 @@ public class FileServerExtended {
                 line = reader.readLine();
             }
             return line;
+        } finally {
+            fileEntry.lock.unlock();
         }
-        throw new IOException("File never reserved: "+filename);
     }
 
     /**
@@ -359,55 +379,61 @@ public class FileServerExtended {
      * @return the parsed line, will be empty if the file is at EOF
      * @throws IOException when reading of the aliased file fails, or the file was not reserved properly
      */
-    public synchronized String[] getParsedLine(String alias, boolean recycle, boolean ignoreFirstLine, char delim) throws IOException {
-        BufferedReader reader = getReader(alias, recycle, ignoreFirstLine);
-        return CSVSaveService.csvReadFile(reader, delim);
+    public String[] getParsedLine(String alias, boolean recycle, boolean ignoreFirstLine, char delim) throws IOException {
+        FileEntry fileEntry = files.get(alias);
+        if (fileEntry == null) {
+            throw new IOException("File never reserved: "+alias);
+        }
+        fileEntry.lock.lock();
+        try {
+            BufferedReader reader = getReader(fileEntry, alias, recycle, ignoreFirstLine);
+            return CSVSaveService.csvReadFile(reader, delim);
+        } finally {
+            fileEntry.lock.unlock();
+        }
     }
 
     /**
      * Return BufferedReader handling close if EOF reached and recycle is true
-     * and ignoring first line if ignoreFirstLine is true
+     * and ignoring first line if ignoreFirstLine is true.
+     * Caller must hold {@code fileEntry.lock}.
      *
-     * @param alias           String alias
+     * @param fileEntry       the reserved file entry
+     * @param alias           String alias (used only for error messages)
      * @param recycle         Recycle at eof
      * @param ignoreFirstLine Ignore first line
      * @return {@link BufferedReader}
      */
-    private BufferedReader getReader(String alias, boolean recycle, boolean ignoreFirstLine) throws IOException {
-        FileEntry fileEntry = files.get(alias);
-        if (fileEntry != null) {
-            BufferedReader reader;
-            if (fileEntry.inputOutputObject == null) {
-                reader = createBufferedReader(fileEntry);
-                fileEntry.inputOutputObject = reader;
-                if (ignoreFirstLine) {
-                    // read first line and forget
-                    reader.readLine(); //NOSONAR
-                }
-            } else if (!(fileEntry.inputOutputObject instanceof Reader)) {
-                throw new IOException("File " + alias + " already in use");
-            } else {
-                reader = (BufferedReader) fileEntry.inputOutputObject;
-                if (recycle) { // need to check if we are at EOF already
-                    reader.mark(1);
-                    int peek = reader.read();
-                    if (peek == -1) { // already at EOF
-                        reader.close();
-                        reader = createBufferedReader(fileEntry);
-                        fileEntry.inputOutputObject = reader;
-                        if (ignoreFirstLine) {
-                            // read first line and forget
-                            reader.readLine(); //NOSONAR
-                        }
-                    } else { // OK, we still have some data, restore it
-                        reader.reset();
+    private BufferedReader getReader(FileEntry fileEntry, String alias, boolean recycle, boolean ignoreFirstLine) throws IOException {
+        BufferedReader reader;
+        if (fileEntry.inputOutputObject == null) {
+            reader = createBufferedReader(fileEntry);
+            fileEntry.inputOutputObject = reader;
+            if (ignoreFirstLine) {
+                // read first line and forget
+                reader.readLine(); //NOSONAR
+            }
+        } else if (!(fileEntry.inputOutputObject instanceof Reader)) {
+            throw new IOException("File " + alias + " already in use");
+        } else {
+            reader = (BufferedReader) fileEntry.inputOutputObject;
+            if (recycle) { // need to check if we are at EOF already
+                reader.mark(1);
+                int peek = reader.read();
+                if (peek == -1) { // already at EOF
+                    reader.close();
+                    reader = createBufferedReader(fileEntry);
+                    fileEntry.inputOutputObject = reader;
+                    if (ignoreFirstLine) {
+                        // read first line and forget
+                        reader.readLine(); //NOSONAR
                     }
+                } else { // OK, we still have some data, restore it
+                    reader.reset();
                 }
             }
-            return reader;
-        } else {
-            throw new IOException("File never reserved: "+alias);
         }
+        return reader;
     }
 
     private BufferedReader createBufferedReader(FileEntry fileEntry) throws IOException {
@@ -430,9 +456,13 @@ public class FileServerExtended {
         return new BufferedReader(isr);
     }
 
-    public synchronized void write(String filename, String value) throws IOException {
+    public void write(String filename, String value) throws IOException {
         FileEntry fileEntry = files.get(filename);
-        if (fileEntry != null) {
+        if (fileEntry == null) {
+            throw new IOException("File never reserved: "+filename);
+        }
+        fileEntry.lock.lock();
+        try {
             if (fileEntry.inputOutputObject == null) {
                 fileEntry.inputOutputObject = createBufferedWriter(fileEntry);
             } else if (!(fileEntry.inputOutputObject instanceof Writer)) {
@@ -441,8 +471,8 @@ public class FileServerExtended {
             BufferedWriter writer = (BufferedWriter) fileEntry.inputOutputObject;
             log.debug("Write:{}", value);
             writer.write(value);
-        } else {
-            throw new IOException("File never reserved: "+filename);
+        } finally {
+            fileEntry.lock.unlock();
         }
     }
 
@@ -478,10 +508,53 @@ public class FileServerExtended {
     }
 
     private void closeFile(String name, FileEntry fileEntry) throws IOException {
-        if (fileEntry != null && fileEntry.inputOutputObject != null) {
-            log.info("Close: {}", name);
-            fileEntry.inputOutputObject.close();
-            fileEntry.inputOutputObject = null;
+        if (fileEntry == null) {
+            return;
+        }
+        fileEntry.lock.lock();
+        try {
+            if (fileEntry.inputOutputObject != null) {
+                log.info("Close: {}", name);
+                fileEntry.inputOutputObject.close();
+                fileEntry.inputOutputObject = null;
+            }
+            if (fileEntry.randomAccessFile != null) {
+                fileEntry.randomAccessFile.close();
+                fileEntry.randomAccessFile = null;
+            }
+        } finally {
+            fileEntry.lock.unlock();
+        }
+    }
+
+    /**
+     * Closes and removes the file entry for an alias, reclaiming it immediately rather than
+     * waiting for {@link #closeFiles()} at test end. Intended for aliases that are exclusively
+     * owned by a single thread (e.g. "Current thread" sharing mode, or Sequential row selection
+     * which is always thread-exclusive) so callers must be sure no other thread can still be
+     * using the alias before calling this.
+     *
+     * @param alias the alias to release
+     * @throws IOException when closing of the aliased file fails
+     */
+    public void releaseFile(String alias) throws IOException {
+        FileEntry fileEntry = files.remove(alias);
+        if (fileEntry == null) {
+            return;
+        }
+        fileEntry.lock.lock();
+        try {
+            if (fileEntry.inputOutputObject != null) {
+                log.info("Close: {}", alias);
+                fileEntry.inputOutputObject.close();
+                fileEntry.inputOutputObject = null;
+            }
+            if (fileEntry.randomAccessFile != null) {
+                fileEntry.randomAccessFile.close();
+                fileEntry.randomAccessFile = null;
+            }
+        } finally {
+            fileEntry.lock.unlock();
         }
     }
 
@@ -534,12 +607,40 @@ public class FileServerExtended {
         private final File file;
         private Closeable inputOutputObject;
         private final String charSetEncoding;
+        // Row count is specific to this file/alias, so it must not be shared with other files.
+        // volatile: today every access goes through `lock`, but marking these volatile means a
+        // future refactor that reads them lock-free (e.g. hoisting the row-count check out of
+        // the critical section for a further contention win) will still see a properly
+        // published, coherent value.
+        private volatile int rowCount;
+        // Byte offset of the start of every line in the file, built once by calculateRowCount().
+        // Lets random/unique reads seek directly to a line instead of rescanning from the start.
+        private volatile long[] lineOffsets;
+        // Cached RandomAccessFile used by readIndexed() so we don't open+close a file handle
+        // on every random/unique read - opened lazily on the first indexed read, closed by
+        // closeFile()/releaseFile() alongside inputOutputObject. Guarded by `lock`.
+        private RandomAccessFile randomAccessFile;
+        // Guards this entry's mutable state (inputOutputObject/rowCount/lineOffsets/headerLine).
+        // Per-entry (rather than a single server-wide lock) so activity on one file/alias never
+        // blocks activity on another.
+        private final ReentrantLock lock = new ReentrantLock();
 
         FileEntry(File f, Closeable o, String e) {
             file = f;
             inputOutputObject = o;
             charSetEncoding = e;
         }
+    }
+
+    /**
+     * Holds the "Unique" row-selection block position (start/end/current) for a single
+     * alias, on a single thread. Kept out of {@link FileEntry} because these positions are
+     * per-thread, whereas a {@link FileEntry} can be shared by many threads.
+     */
+    private static class Positions {
+        private int readPos;
+        private int startPos;
+        private int endPos;
     }
 
     /**
@@ -585,35 +686,36 @@ public class FileServerExtended {
      * @return String containing the next line in the file
      * @throws IOException when reading of the file fails, or the file was not reserved properly
      */
-    public void calculateRowCount(String filename, boolean ignoreFirstLine) {
+    public void calculateRowCount(String filename, boolean ignoreFirstLine) throws IOException {
         FileEntry fileEntry = files.get(filename);
-        int count = 0;
-        try (BufferedReader br = new BufferedReader(new FileReader(String.valueOf(fileEntry.file.toPath())))) {
-            count = (int) br.lines().count();
-        } catch (IOException e) {
-            log.error(e.toString());
-
+        if (fileEntry == null) {
+            throw new IllegalArgumentException("File never reserved: " + filename);
         }
-        this.setRowCount(ignoreFirstLine ? count-1 : count );
-    }
-
-    /**
-     * Set the read position to Thread local (specific to each thread)
-     *
-     * @param threadName the filename or alias that was used to reserve the file
-     * @param blockSize Set the block
-     * @param ignoreFirstLine Consider first line as variable name ?
-     * @return String containing the next line in the file
-     * @throws IOException when reading of the file fails, or the file was not reserved properly
-     */
-    public static void setReadPosition(String threadName, int blockSize, boolean ignoreFirstLine) {
-        int head = ignoreFirstLine ? 1 : 0;
-        int endPos = (Integer.parseInt(threadName.substring(threadName.lastIndexOf('-') + 1)) * blockSize) - 1;
-        setEndPos(endPos);
-        setStartPos((getEndPos() - blockSize) + 1);
-        if(ignoreFirstLine){
-            setEndPos(getEndPos() + head);
-            setStartPos(getStartPos() + head);
+        fileEntry.lock.lock();
+        try {
+            // Single pass over the file, recording the byte offset of every line so that
+            // readIndexed() can later seek straight to any line instead of rescanning from
+            // the start of the file on every random/unique read.
+            // Any I/O failure here (bad permissions, disk error, missing file) is propagated
+            // instead of swallowed - previously it silently left the index partially built,
+            // producing later "End of file" errors on random reads with no diagnosable cause.
+            List<Long> offsets = new ArrayList<>();
+            try (RandomAccessFile raf = new RandomAccessFile(fileEntry.file, "r")) {
+                long pos = raf.getFilePointer();
+                while (raf.readLine() != null) {
+                    offsets.add(pos);
+                    pos = raf.getFilePointer();
+                }
+            }
+            long[] lineOffsets = new long[offsets.size()];
+            for (int i = 0; i < offsets.size(); i++) {
+                lineOffsets[i] = offsets.get(i);
+            }
+            fileEntry.lineOffsets = lineOffsets;
+            // Math.max guards against an empty file with ignoreFirstLine=true producing -1.
+            fileEntry.rowCount = Math.max(0, ignoreFirstLine ? lineOffsets.length - 1 : lineOffsets.length);
+        } finally {
+            fileEntry.lock.unlock();
         }
     }
 
@@ -625,11 +727,29 @@ public class FileServerExtended {
      * @return String containing the next line in the file
      * @throws IOException when reading of the file fails, or the file was not reserved properly
      */
-    public synchronized String readRandom(String filename, boolean ignoreFirstLine) throws IOException {
-        Random rand = new Random();
-        int startPos = ignoreFirstLine ? 1 : 0;
-        int randPos = rand.nextInt(((rowCount -1) - startPos) + 1) + startPos;
-        return readIndexed(filename, randPos);
+    public String readRandom(String filename, boolean ignoreFirstLine) throws IOException {
+        FileEntry fileEntry = files.get(filename);
+        if (fileEntry == null) {
+            throw new IOException("File never reserved: "+filename);
+        }
+        fileEntry.lock.lock();
+        try {
+            // rowCount is already the number of DATA rows (header excluded when
+            // ignoreFirstLine=true). Valid absolute line indices for data are
+            // [startOffset, startOffset + rowCount - 1], so nextInt(rowCount) + startOffset.
+            // Guard against empty / header-only files (rowCount == 0) which would otherwise
+            // crash ThreadLocalRandom.nextInt with IllegalArgumentException, and also fix a
+            // latent off-by-one in the original formula that never picked the last row when
+            // ignoreFirstLine was true.
+            if (fileEntry.rowCount <= 0) {
+                return null;
+            }
+            int startOffset = ignoreFirstLine ? 1 : 0;
+            int randPos = ThreadLocalRandom.current().nextInt(fileEntry.rowCount) + startOffset;
+            return readIndexed(fileEntry, randPos);
+        } finally {
+            fileEntry.lock.unlock();
+        }
     }
 
     /**
@@ -644,54 +764,86 @@ public class FileServerExtended {
      * @return String containing the next line in the file
      * @throws IOException when reading of the file fails, or the file was not reserved properly
      */
-    public synchronized String readUnique(String filename, boolean ignoreFirstLine, String ooValue, int currPos, int startPos, int endPos) throws IOException {
+    public String readUnique(String filename, boolean ignoreFirstLine, String ooValue, int currPos, int startPos, int endPos) throws IOException {
+        FileEntry fileEntry = files.get(filename);
+        if (fileEntry == null) {
+            throw new IOException("File never reserved: "+filename);
+        }
+        // For "Abort Thread", check BEFORE reading. The previous logic read at currPos first
+        // and only then checked whether we were already past endPos, which meant every thread
+        // read one row belonging to the next thread's block before aborting — producing
+        // duplicated rows across threads in multi-thread Unique mode.
+        if (ooValue.equalsIgnoreCase("Abort Thread") && currPos > endPos) {
+            throw new JMeterStopThreadException("End of Block :" + filename + " detected for Extended CSV DataSet:"
+                    + filename + " configured with stopThread: " + ooValue);
+        }
         String line = null;
-        if(currPos < getRowCount()){
-            line = readIndexed(filename, currPos);
+        fileEntry.lock.lock();
+        try {
+            if (currPos < fileEntry.rowCount && currPos <= endPos) {
+                line = readIndexed(fileEntry, currPos);
+            }
+        } finally {
+            fileEntry.lock.unlock();
         }
         if(ooValue.equalsIgnoreCase("Continue Cyclic")){
             if(currPos >= endPos){
-                readPos.set(startPos);
+                setReadPos(filename, startPos);
             }else {
-                readPos.set(currPos + 1);
+                setReadPos(filename, currPos + 1);
             }
         }else if(ooValue.equalsIgnoreCase("Abort Thread")){
-            if(currPos <= endPos){
-                readPos.set(currPos + 1);
-            }else{
-                throw new JMeterStopThreadException("End of Block :" + filename + " detected for Extended CSV DataSet:"
-                        + filename + " configured with stopThread: " + ooValue);
-            }
+            setReadPos(filename, currPos + 1);
         }else{
+            // "Continue with Last Value": stay on endPos once the block is exhausted.
             if(currPos >= endPos){
-                readPos.set(currPos);
+                setReadPos(filename, currPos);
             }else{
-                readPos.set(currPos + 1);
+                setReadPos(filename, currPos + 1);
             }
         }
         return line;
     }
 
     /**
-     * Get the indexed line of the named file
+     * Get the indexed line of a file, using the byte-offset index built by
+     * {@link #calculateRowCount(String, boolean)} to seek directly to the line instead of
+     * scanning the file from the start. Caller must hold {@code fileEntry.lock} and must have
+     * already called {@code calculateRowCount} for this entry.
      *
-     * @param filename the filename or alias that was used to reserve the file
+     * @param fileEntry the reserved file entry
      * @param pos - line number to fetch from the file (starts from 0)
-     * @return String containing the next line in the file
-     * @throws IOException when reading of the file fails, or the file was not reserved properly
+     * @return String containing the requested line, or {@code null} if pos is out of range
+     * @throws IOException when reading of the file fails
      */
-
-    private String readIndexed(String filename, int pos) throws IOException {
-        String line = null;
-        FileEntry fileEntry = files.get(filename);
-        if(fileEntry != null){
-            try (Stream<String> lines = Files.lines(Paths.get(String.valueOf(fileEntry.file.toPath())))) {
-                line = lines.skip(pos).findFirst().get();
-            }catch(IOException e){
-                log.error(e.toString());
-            }
+    private String readIndexed(FileEntry fileEntry, int pos) throws IOException {
+        long[] offsets = fileEntry.lineOffsets;
+        if (offsets == null || pos < 0 || pos >= offsets.length) {
+            return null;
         }
-        return line;
+        // Lazily open a cached RandomAccessFile once per entry (safe because the caller holds
+        // fileEntry.lock, which serialises all indexed reads on this entry). Closed by
+        // closeFile()/releaseFile().
+        if (fileEntry.randomAccessFile == null) {
+            fileEntry.randomAccessFile = new RandomAccessFile(fileEntry.file, "r");
+        }
+        RandomAccessFile raf = fileEntry.randomAccessFile;
+        raf.seek(offsets[pos]);
+        String rawLine = raf.readLine();
+        if (rawLine == null) {
+            return null;
+        }
+        // RandomAccessFile.readLine() decodes bytes as ISO-8859-1 (no charset support), so
+        // recover the original bytes and decode them with the configured charset, matching
+        // the encoding-handling used for sequential reads in createBufferedReader().
+        byte[] rawBytes = rawLine.getBytes(StandardCharsets.ISO_8859_1);
+        String charsetName = fileEntry.charSetEncoding;
+        if (!JOrphanUtils.isBlank(charsetName)) {
+            return new String(rawBytes, charsetName);
+        }
+        @SuppressWarnings("DefaultCharset")
+        final String withPlatformEncoding = new String(rawBytes);
+        return withPlatformEncoding;
     }
 
     private enum ParserState {
@@ -796,29 +948,43 @@ public class FileServerExtended {
         return list.toArray(new String[list.size()]);
     }
 
-    public static int getRowCount() {
-        return rowCount;
-    }
-    public static void setRowCount(int count) {
-        FileServerExtended.rowCount = count;
+    /**
+     * @param alias the alias that was used to reserve the file
+     * @return the row count previously computed for this alias's file, or 0 if not yet calculated
+     */
+    public int getRowCount(String alias) {
+        FileEntry fileEntry = files.get(alias);
+        if (fileEntry == null) {
+            return 0;
+        }
+        fileEntry.lock.lock();
+        try {
+            return fileEntry.rowCount;
+        } finally {
+            fileEntry.lock.unlock();
+        }
     }
 
-    public static int getEndPos() {
-        return endPos.get();
+    private static Positions getPositions(String alias) {
+        return positionsByAlias.get().computeIfAbsent(alias, k -> new Positions());
     }
-    public static void setEndPos(int ep) {
-        endPos.set(ep);
+
+    public static int getEndPos(String alias) {
+        return getPositions(alias).endPos;
     }
-    public static int getStartPos() {
-        return startPos.get();
+    public static void setEndPos(String alias, int ep) {
+        getPositions(alias).endPos = ep;
     }
-    public static void setStartPos(int sp) {
-        startPos.set(sp);
+    public static int getStartPos(String alias) {
+        return getPositions(alias).startPos;
     }
-    public static int getReadPos() {
-        return readPos.get();
+    public static void setStartPos(String alias, int sp) {
+        getPositions(alias).startPos = sp;
     }
-    public static void setReadPos(int rp) {
-        readPos.set(rp);
+    public static int getReadPos(String alias) {
+        return getPositions(alias).readPos;
+    }
+    public static void setReadPos(String alias, int rp) {
+        getPositions(alias).readPos = rp;
     }
 }

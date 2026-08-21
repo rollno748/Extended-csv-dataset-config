@@ -1,0 +1,39 @@
+name: Build
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build & test (JDK ${{ matrix.jdk }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 8 is the plugin's declared source/target; 11 & 17 catch API-compat drift early.
+        jdk: [ '8', '11', '17' ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ matrix.jdk }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.jdk }}
+          cache: maven
+
+      - name: Build and test
+        run: mvn -B -ntp verify
+
+      - name: Upload test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports-jdk${{ matrix.jdk }}
+          path: target/surefire-reports
+          if-no-files-found: ignore
